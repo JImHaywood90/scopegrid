@@ -2,23 +2,29 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image'; // ← add this
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Users, Settings, Shield, Activity, Menu } from 'lucide-react';
 
-export default function DashboardLayout({
-  children
-}: {
-  children: React.ReactNode;
-}) {
+type NavItem = {
+  href: string;
+  label: string;
+  icon?: React.ComponentType<{ className?: string }>;
+  img?: string; // path to a public image
+};
+
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  const navItems = [
-    { href: '/dashboard', icon: Users, label: 'Team' },
-    { href: '/dashboard/general', icon: Settings, label: 'General' },
-    { href: '/dashboard/activity', icon: Activity, label: 'Activity' },
-    { href: '/dashboard/security', icon: Shield, label: 'Security' }
+  const navItems: NavItem[] = [
+    { href: '/settings', icon: Users, label: 'Team' },
+    { href: '/settings/general', icon: Settings, label: 'General' },
+    { href: '/settings/activity', icon: Activity, label: 'Activity' },
+    { href: '/settings/security', icon: Shield, label: 'Security' },
+    // Use image from /public (update name if yours is different)
+    { href: '/settings/connectwise', img: '/connectwise.png', label: 'ConnectWise' },
   ];
 
   return (
@@ -28,11 +34,7 @@ export default function DashboardLayout({
         <div className="flex items-center">
           <span className="font-medium">Settings</span>
         </div>
-        <Button
-          className="-mr-3"
-          variant="ghost"
-          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-        >
+        <Button className="-mr-3" variant="ghost" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
           <Menu className="h-6 w-6" />
           <span className="sr-only">Toggle sidebar</span>
         </Button>
@@ -57,8 +59,19 @@ export default function DashboardLayout({
                   }`}
                   onClick={() => setIsSidebarOpen(false)}
                 >
-                  <item.icon className="h-4 w-4" />
-                  {item.label}
+                  {/* Render image if provided, else Lucide icon */}
+                  {item.img ? (
+                    <Image
+                      src={item.img}
+                      alt={item.label}
+                      width={16}
+                      height={16}
+                      className="h-4 w-4 rounded-sm"
+                    />
+                  ) : item.icon ? (
+                    <item.icon className="h-4 w-4" />
+                  ) : null}
+                  <span className="ml-2">{item.label}</span>
                 </Button>
               </Link>
             ))}

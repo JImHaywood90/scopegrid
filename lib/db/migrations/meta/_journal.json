@@ -8,6 +8,48 @@
       "when": 1726443359662,
       "tag": "0000_soft_the_anarchist",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1758660480217,
+      "tag": "0001_calm_mordo",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1758661121925,
+      "tag": "0002_sweet_lord_tyger",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1758662597222,
+      "tag": "0003_cute_ogun",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1758662865136,
+      "tag": "0004_majestic_elektra",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1758665535102,
+      "tag": "0005_ancient_harrier",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1758742685771,
+      "tag": "0006_tan_sinister_six",
+      "breakpoints": true
     }
   ]
 }

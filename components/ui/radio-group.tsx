@@ -5,6 +5,7 @@ import { RadioGroup as RadioGroupPrimitive } from "radix-ui";;
 import { CircleIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 
 function RadioGroup({
   className,
@@ -36,7 +37,14 @@ function RadioGroupItem({
         data-slot="radio-group-indicator"
         className="relative flex items-center justify-center"
       >
-        <CircleIcon className="fill-primary absolute top-1/2 left-1/2 size-2 -translate-x-1/2 -translate-y-1/2" />
+          <Image
+            src="/ScopeGridLogo.png"
+            alt="ScopeGrid"
+            width={160}           // safe intrinsic size; adjust to your asset
+            height={40}
+            className="h-8 w-auto"
+            priority
+          />
       </RadioGroupPrimitive.Indicator>
     </RadioGroupPrimitive.Item>
   );

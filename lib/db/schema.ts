@@ -5,6 +5,10 @@ import {
   text,
   timestamp,
   integer,
+  uuid,
+  uniqueIndex,
+  boolean,
+  jsonb,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
@@ -112,6 +116,62 @@ export const activityLogsRelations = relations(activityLogs, ({ one }) => ({
   }),
 }));
 
+export const connectwiseCredentials = pgTable(
+  'connectwise_credentials',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    // match teams.id which is serial (integer)
+    teamId: integer('team_id').notNull().references(() => teams.id),
+    siteUrl: text('site_url').notNull(),       // e.g. https://api-na.myconnectwise.net
+    companyIdEnc: text('company_id_enc').notNull(),
+    publicKeyEnc: text('public_key_enc').notNull(),
+    privateKeyEnc: text('private_key_enc').notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (t) => ({
+    // one CW credential row per team
+    uniqTeam: uniqueIndex('uniq_cw_team').on(t.teamId),
+  })
+);
+
+export const tenantSettings = pgTable('tenant_settings', {
+  id: serial('id').primaryKey(),
+  teamId: integer('team_id').notNull().references(() => teams.id).unique(),
+  subdomain: varchar('subdomain', { length: 63 }).notNull().unique(),
+  cwConfigured: boolean('cw_configured').notNull().default(false),
+  onboardingCompleted: boolean('onboarding_completed').notNull().default(false),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+
+export const productCatalog = pgTable(
+  'product_catalog',
+  {
+    id: serial('id').primaryKey(),
+    slug: varchar('slug', { length: 64 }).notNull(),              // unique key
+    name: varchar('name', { length: 120 }).notNull(),
+    vendor: varchar('vendor', { length: 120 }),
+    category: varchar('category', { length: 80 }),
+    description: text('description'),
+    logoLightPath: text('logo_light_path').notNull(),             // e.g. /logos/veeam250.png
+    logoDarkPath: text('logo_dark_path'),                         // optional future dark logo
+    // Postgres arrays for tags & match terms
+    tags: text('tags').array().$type<string[]>().default([]),
+    matchTerms: text('match_terms').array().$type<string[]>().notNull().default([]),
+    links: jsonb('links').$type<Record<string, string>>().default({}),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (t) => ({
+    uniqSlug: uniqueIndex('uniq_product_slug').on(t.slug),
+  })
+);
+
+export type ProductCatalog = typeof productCatalog.$inferSelect;
+export type ConnectWiseCredentials = typeof connectwiseCredentials.$inferSelect;
+export type TenantSettings = typeof tenantSettings.$inferSelect;
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Team = typeof teams.$inferSelect;
