@@ -43,9 +43,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  // choose header variant
-  const isDashboard = pathname === '/dashboard';
-
+  <meta name="apple-mobile-web-app-title" content="ScopeGrid" />
   return (
     <section className="flex flex-col min-h-screen">
     <StandardHeader />
