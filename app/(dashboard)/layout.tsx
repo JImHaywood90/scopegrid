@@ -195,33 +195,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  // onboarding check
-  const { data: team } = useSWR<TeamDataWithMembers>('/api/team', fetcher);
-  const teamId = team?.id;
-  const { data: tenant, isLoading } = useSWR(teamId ? `/api/tenant-settings?teamId=${teamId}` : null, fetcher);
-
-  useEffect(() => {
-    if (tenant && !tenant.onboardingCompleted) {
-      router.replace('/onboarding');
-    }
-  }, [tenant, router]);
-
-  const checking = teamId && (isLoading || (tenant && !tenant.onboardingCompleted));
-
   // choose header variant
   const isDashboard = pathname === '/dashboard';
 
   return (
     <section className="flex flex-col min-h-screen">
       {isDashboard ? <DashboardHeader /> : <StandardHeader />}
-
-      {checking ? (
-        <div className="flex-1 flex items-center justify-center p-10 text-sm text-gray-500">
-          Loading…
-        </div>
-      ) : (
         children
-      )}
     </section>
   );
 }

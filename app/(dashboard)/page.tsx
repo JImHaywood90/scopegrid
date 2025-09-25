@@ -45,63 +45,6 @@ function useInView<T extends Element>() {
 }
 
 
-export function RotatingWords() {
-  // What you cycle through
-  const words = useMemo(
-    () => ['M365 stack.', 'security stack.', 'backup stack.', 'RMM stack.'],
-    []
-  );
-  // Keep width stable using the longest word
-  const longest = useMemo(
-    () => words.reduce((a, b) => (a.length >= b.length ? a : b)),
-    [words]
-  );
-
-  const [idx, setIdx] = useState(0);
-  const [fadeKey, setFadeKey] = useState(0); // forces CSS transition retrigger
-  const timerRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    const tick = () => {
-      setIdx((i) => (i + 1) % words.length);
-      setFadeKey((k) => k + 1);
-    };
-    timerRef.current = window.setInterval(tick, 4000);
-    return () => {
-      if (timerRef.current) window.clearInterval(timerRef.current);
-    };
-  }, [words.length]);
-
-  return (
-    <span
-      className="
-        relative inline-grid align-baseline whitespace-nowrap
-      "
-      style={{ gridTemplateColumns: '1fr' }}
-    >
-      {/* Ghost sets stable width; no overflow/mask anywhere */}
-      <span className="invisible select-none pointer-events-none">
-        {longest}&nbsp;
-      </span>
-
-      {/* Actual word; stacked exactly over the ghost */}
-      <span
-        key={fadeKey}
-        className="
-          col-start-1 row-start-1
-          text-orange-600
-          transition-opacity duration-700 ease-out
-          motion-reduce:transition-none
-        "
-        // Start slightly transparent then fade to 1; previous text remains under (same width) so no clipping
-        style={{ opacity: 1 }}
-      >
-        {words[idx]}
-      </span>
-    </span>
-  );
-}
-
 /* ----------------- Floating mock dashboard (distinct look) ----------------- */
 function MockDashboard() {
   const logos = [
