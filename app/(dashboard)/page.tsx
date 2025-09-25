@@ -230,7 +230,7 @@ export default function HomePage() {
                 <b>ConnectWise agreements & configurations</b>. See M365,
                 security, backup, RMM and more—with deep links to each portal.
               </p>
-              <div className="mt-6 flex flex-wrap gap-3">
+              {/* <div className="mt-6 flex flex-wrap gap-3">
                 <Button asChild size="lg" className="rounded-full">
                   <Link href="/sign-up">
                     Get started
@@ -245,7 +245,7 @@ export default function HomePage() {
                 >
                   <Link href="/dashboard">Try the dashboard</Link>
                 </Button>
-              </div>
+              </div> */}
               <p className="mt-3 text-xs text-gray-500">
                 Secure — tenant-scoped — built for MSPs
               </p>
@@ -338,14 +338,14 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="mt-10">
+          {/* <div className="mt-10">
             <Button asChild size="lg" className="rounded-full">
               <Link href="/sign-up">
                 Get started
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>
-          </div>
+          </div> */}
         </div>
       </section>
 
