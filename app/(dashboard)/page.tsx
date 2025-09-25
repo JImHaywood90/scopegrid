@@ -1,25 +1,118 @@
-import Image from 'next/image';
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
+"use client";
+
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import {
   PanelsTopLeft,
   ScanSearch,
   ShieldCheck,
   PlugZap,
   ArrowRight,
-} from 'lucide-react';
+} from "lucide-react";
+
+/* -------------------------- Little utilities/hooks -------------------------- */
+function usePrefersReducedMotion() {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setReduced(mq.matches);
+    update();
+    mq.addEventListener?.("change", update);
+    return () => mq.removeEventListener?.("change", update);
+  }, []);
+  return reduced;
+}
+
+function useInView<T extends Element>() {
+  const ref = useRef<T | null>(null);
+  const [inView, setInView] = useState(true);
+  useEffect(() => {
+    if (!ref.current || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(
+      (entries) => setInView(entries[0]?.isIntersecting ?? true),
+      {
+        threshold: 0,
+        rootMargin: "0px",
+      }
+    );
+    io.observe(ref.current);
+    return () => io.disconnect();
+  }, []);
+  return { ref, inView };
+}
+
+
+export function RotatingWords() {
+  // What you cycle through
+  const words = useMemo(
+    () => ['M365 stack.', 'security stack.', 'backup stack.', 'RMM stack.'],
+    []
+  );
+  // Keep width stable using the longest word
+  const longest = useMemo(
+    () => words.reduce((a, b) => (a.length >= b.length ? a : b)),
+    [words]
+  );
+
+  const [idx, setIdx] = useState(0);
+  const [fadeKey, setFadeKey] = useState(0); // forces CSS transition retrigger
+  const timerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const tick = () => {
+      setIdx((i) => (i + 1) % words.length);
+      setFadeKey((k) => k + 1);
+    };
+    timerRef.current = window.setInterval(tick, 4000);
+    return () => {
+      if (timerRef.current) window.clearInterval(timerRef.current);
+    };
+  }, [words.length]);
+
+  return (
+    <span
+      className="
+        relative inline-grid align-baseline whitespace-nowrap
+      "
+      style={{ gridTemplateColumns: '1fr' }}
+    >
+      {/* Ghost sets stable width; no overflow/mask anywhere */}
+      <span className="invisible select-none pointer-events-none">
+        {longest}&nbsp;
+      </span>
+
+      {/* Actual word; stacked exactly over the ghost */}
+      <span
+        key={fadeKey}
+        className="
+          col-start-1 row-start-1
+          text-orange-600
+          transition-opacity duration-700 ease-out
+          motion-reduce:transition-none
+        "
+        // Start slightly transparent then fade to 1; previous text remains under (same width) so no clipping
+        style={{ opacity: 1 }}
+      >
+        {words[idx]}
+      </span>
+    </span>
+  );
+}
 
 /* ----------------- Floating mock dashboard (distinct look) ----------------- */
 function MockDashboard() {
   const logos = [
-    { src: '/logos/microsoft250.png', alt: 'Microsoft 365' },
-    { src: '/logos/sentinel250.png', alt: 'SentinelOne' },
-    { src: '/logos/Veeam250_light.png', alt: 'Veeam' },
-    { src: '/logos/mimecast250.png', alt: 'Mimecast' },
-    { src: '/logos/meraki250.png', alt: 'Cisco Meraki' },
-    { src: '/logos/datto250.png', alt: 'Datto' },
-    { src: '/logos/acronis250_light.png', alt: 'Acronis' },
-    { src: '/logos/webroot250_light.png', alt: 'Webroot' },
+    { src: "/logos/microsoft250.png", alt: "Microsoft 365" },
+    { src: "/logos/sentinel250.png", alt: "SentinelOne" },
+    { src: "/logos/Veeam250_light.png", alt: "Veeam" },
+    { src: "/logos/mimecast250.png", alt: "Mimecast" },
+    { src: "/logos/meraki250.png", alt: "Cisco Meraki" },
+    { src: "/logos/datto250.png", alt: "Datto" },
+    { src: "/logos/acronis250_light.png", alt: "Acronis" },
+    { src: "/logos/webroot250_light.png", alt: "Webroot" },
   ];
 
   return (
@@ -32,7 +125,9 @@ function MockDashboard() {
           <span className="size-2.5 rounded-full bg-red-400" />
           <span className="size-2.5 rounded-full bg-amber-400" />
           <span className="size-2.5 rounded-full bg-green-400" />
-          <div className="ml-3 text-xs text-gray-500 truncate">ScopeGrid — Client Products</div>
+          <div className="ml-3 text-xs text-gray-500 truncate">
+            ScopeGrid — Client Products
+          </div>
         </div>
         {/* search/filter bar mock */}
         <div className="flex gap-2 items-center px-4 py-3 border-b bg-orange-50/60">
@@ -67,35 +162,78 @@ function MockDashboard() {
   );
 }
 
-/* ------------------------------- Logo wall -------------------------------- */
-function LogoWall() {
-  const logos = [
-    { src: '/logos/microsoft250.png', alt: 'Microsoft 365' },
-    { src: '/logos/sentinel250.png', alt: 'SentinelOne' },
-    { src: '/logos/Veeam250.png', alt: 'Veeam' },
-    { src: '/logos/mimecast250.png', alt: 'Mimecast' },
-    { src: '/logos/meraki250.png', alt: 'Meraki' },
-    { src: '/logos/datto250.png', alt: 'Datto' },
-    { src: '/logos/acronis250.png', alt: 'Acronis' },
-    { src: '/logos/webroot250.png', alt: 'Webroot' },
-  ];
+/* --------------------------- Scrolling logo marquee ------------------------- */
+function LogoMarquee() {
+  const baseLogos = useMemo(
+    () => [
+      { src: "/logos/microsoft250.png", alt: "Microsoft 365" },
+      { src: "/logos/sentinel250.png", alt: "SentinelOne" },
+      { src: "/logos/Veeam250.png", alt: "Veeam" },
+      { src: "/logos/mimecast250.png", alt: "Mimecast" },
+      { src: "/logos/meraki250.png", alt: "Meraki" },
+      { src: "/logos/datto250.png", alt: "Datto" },
+      { src: "/logos/acronis250.png", alt: "Acronis" },
+      { src: "/logos/webroot250.png", alt: "Webroot" },
+    ],
+    []
+  );
+
+  // duplicate for seamless loop
+  const logos = useMemo(() => [...baseLogos, ...baseLogos], [baseLogos]);
+
+  const { ref, inView } = useInView<HTMLDivElement>();
+  const reduced = usePrefersReducedMotion();
+
   return (
     <div className="bg-gray-900 py-10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <p className="text-center text-gray-300 text-sm uppercase tracking-wider">
           Auto-detects from your ConnectWise data
         </p>
-        <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-6 items-center justify-items-center">
-          {logos.map((l, i) => (
-            <Image
-              key={i}
-              src={l.src}
-              alt={l.alt}
-              width={220}
-              height={88}
-              className="h-10 sm:h-12 md:h-14 w-auto object-contain opacity-90 hover:opacity-100 transition"
-            />
-          ))}
+
+        <div
+          ref={ref}
+          className="group relative mt-8 overflow-hidden rounded-xl bg-gray-900/40 ring-1 ring-white/5"
+        >
+          <div
+            className={`flex items-center gap-12 will-change-transform whitespace-nowrap py-6 ${
+              reduced ? "" : "marquee"
+            } ${inView ? "" : "paused"} group-hover:paused`}
+            aria-hidden="true"
+          >
+            {logos.map((l, i) => (
+              <Image
+                key={`${l.alt}-${i}`}
+                src={l.src}
+                alt={l.alt}
+                width={220}
+                height={88}
+                className="h-10 sm:h-12 md:h-14 w-auto object-contain opacity-85 hover:opacity-100 transition"
+              />
+            ))}
+          </div>
+          <style jsx>{`
+            .marquee {
+              animation: marquee 60s linear infinite;
+            }
+            .paused {
+              animation-play-state: paused !important;
+            }
+            @media (prefers-reduced-motion: reduce) {
+              .marquee {
+                animation: none;
+                transform: none;
+              }
+            }
+            @keyframes marquee {
+              0% {
+                transform: translateX(0);
+              }
+              100% {
+                transform: translateX(-50%);
+              }
+            }
+          `}</style>
         </div>
       </div>
     </div>
@@ -123,24 +261,31 @@ function FeatureCard({
   );
 }
 
+/* --------------------------------- Page ---------------------------------- */
 export default function HomePage() {
   return (
     <main>
       {/* Distinct hero layout (gradient + asymmetrical) */}
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-orange-50 via-white to-white" />
-        <div className="absolute -top-24 -right-24 size-[400px] rounded-full bg-orange-200/30 blur-3xl" />
+      <section className="relative">
+        {/* ⟵ remove overflow-hidden here */}
+        {/* put the backgrounds in their own clipped layer behind content */}
+        <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-orange-50 via-white to-white" />
+          <div className="absolute -top-24 -right-24 size-[400px] rounded-full bg-orange-200/30 blur-3xl" />
+        </div>
+
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24">
           <div className="grid lg:grid-cols-12 gap-10 items-center">
-            <div className="lg:col-span-5">
+            <div className="lg:col-span-5 overflow-visible">
+              {/* safety */}
               <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-gray-900">
                 One pane for every client’s{' '}
                 <span className="text-orange-600">products & configs.</span>
               </h1>
               <p className="mt-4 text-lg text-gray-700">
-                ScopeGrid auto-builds a clean dashboard per customer using{' '}
-                <b>ConnectWise agreements & configurations</b>. See M365, security, backup, RMM and
-                more—with deep links to each portal.
+                ScopeGrid auto-builds a clean dashboard per customer using{" "}
+                <b>ConnectWise agreements & configurations</b>. See M365,
+                security, backup, RMM and more—with deep links to each portal.
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
                 <Button asChild size="lg" className="rounded-full">
@@ -149,7 +294,12 @@ export default function HomePage() {
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
                 </Button>
-                <Button asChild size="lg" variant="outline" className="rounded-full">
+                <Button
+                  asChild
+                  size="lg"
+                  variant="outline"
+                  className="rounded-full"
+                >
                   <Link href="/dashboard">Try the dashboard</Link>
                 </Button>
               </div>
@@ -165,10 +315,10 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Big, bold logo wall (larger & prominent) */}
-      <LogoWall />
+      {/* Marquee logo wall (slow, pauses on hover / off-screen, respects reduced motion) */}
+      <LogoMarquee />
 
-      {/* Features (new icons & copy) */}
+      {/* Features (same as before) */}
       <section className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -176,23 +326,29 @@ export default function HomePage() {
               icon={<ScanSearch className="h-6 w-6" />}
               title="ConnectWise-powered discovery"
             >
-              We read agreement additions and configurations to auto-detect each customer’s tools.
-              No manual tagging required.
+              We read agreement additions and configurations to auto-detect each
+              customer’s tools. No manual tagging required.
             </FeatureCard>
             <FeatureCard
               icon={<PanelsTopLeft className="h-6 w-6" />}
               title="Clean, card-based UI"
             >
-              Product cards with vendor logos and deep links. Fast filtering and search. Built for
-              quick customer context.
+              Product cards with vendor logos and deep links. Fast filtering and
+              search. Built for quick customer context.
             </FeatureCard>
-            <FeatureCard icon={<ShieldCheck className="h-6 w-6" />} title="Tenant isolation">
-              Scoped by team, optional subdomains, and encrypted credentials. Customer-locked views
-              for AMs and techs.
+            <FeatureCard
+              icon={<ShieldCheck className="h-6 w-6" />}
+              title="Tenant isolation"
+            >
+              Scoped by team, optional subdomains, and encrypted credentials.
+              Customer-locked views for AMs and techs.
             </FeatureCard>
-            <FeatureCard icon={<PlugZap className="h-6 w-6" />} title="Snappy & cache-aware">
-              Our proxy and bundle endpoints minimize API calls and keep pages fast—even on large
-              tenants.
+            <FeatureCard
+              icon={<PlugZap className="h-6 w-6" />}
+              title="Snappy & cache-aware"
+            >
+              Our proxy and bundle endpoints minimize API calls and keep pages
+              fast—even on large tenants.
             </FeatureCard>
           </div>
         </div>
@@ -201,28 +357,40 @@ export default function HomePage() {
       {/* How it works (timeline) */}
       <section className="py-16 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl font-bold text-gray-900">How ScopeGrid works</h2>
+          <h2 className="text-2xl font-bold text-gray-900">
+            How ScopeGrid works
+          </h2>
           <div className="mt-8 grid gap-6 lg:grid-cols-3">
             <div className="rounded-2xl border bg-white p-6">
-              <div className="text-sm font-semibold text-orange-600">Step 1</div>
+              <div className="text-sm font-semibold text-orange-600">
+                Step 1
+              </div>
               <h3 className="mt-1 text-lg font-semibold">Create your team</h3>
               <p className="mt-2 text-gray-600">
-                Sign up, invite teammates, and (optionally) claim a subdomain for a clean tenant URL.
+                Sign up, invite teammates, and (optionally) claim a subdomain
+                for a clean tenant URL.
               </p>
             </div>
             <div className="rounded-2xl border bg-white p-6">
-              <div className="text-sm font-semibold text-orange-600">Step 2</div>
-              <h3 className="mt-1 text-lg font-semibold">Connect ConnectWise</h3>
+              <div className="text-sm font-semibold text-orange-600">
+                Step 2
+              </div>
+              <h3 className="mt-1 text-lg font-semibold">
+                Connect ConnectWise
+              </h3>
               <p className="mt-2 text-gray-600">
-                Add site URL, company ID, and API keys. We encrypt at rest and test the connection.
+                Add site URL, company ID, and API keys. We encrypt at rest and
+                test the connection.
               </p>
             </div>
             <div className="rounded-2xl border bg-white p-6">
-              <div className="text-sm font-semibold text-orange-600">Step 3</div>
+              <div className="text-sm font-semibold text-orange-600">
+                Step 3
+              </div>
               <h3 className="mt-1 text-lg font-semibold">Pick a company</h3>
               <p className="mt-2 text-gray-600">
-                Use the header picker. We auto-detect their stack and render product cards with deep
-                links to each portal.
+                Use the header picker. We auto-detect their stack and render
+                product cards with deep links to each portal.
               </p>
             </div>
           </div>
