@@ -103,11 +103,11 @@ function StandardHeader() {
             priority
           />
         </Link>
-        <div className="flex items-center space-x-4">
+        {/* <div className="flex items-center space-x-4">
           <Suspense fallback={<div className="h-9" />}>
             <UserMenu />
           </Suspense>
-        </div>
+        </div> */}
       </div>
     </header>
   );
@@ -139,11 +139,11 @@ function DashboardHeader() {
         <Link href="/" className="flex items-center gap-2" aria-label="ScopeGrid home">
           <Image src="/ScopeGridLogoLight.png" alt="ScopeGrid" width={140} height={36} className="h-10 w-auto" />
         </Link>
-        <div className="flex items-center space-x-4">
+        {/* <div className="flex items-center space-x-4">
           <Suspense fallback={<div className="h-9" />}>
             <UserMenu />
           </Suspense>
-        </div>
+        </div> */}
       </div>
 
       {/* sub-row: company picker + filters */}

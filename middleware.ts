@@ -1,49 +1,46 @@
-import { NextResponse } from 'next/server';
+// middleware.ts
 import type { NextRequest } from 'next/server';
-import { signToken, verifyToken } from '@/lib/auth/session';
+import { NextResponse } from 'next/server';
 
-const protectedRoutes = '/dashboard';
+const ALLOWED_EXACT = new Set<string>([
+  '/',            // home
+  '/favicon.ico',
+  '/robots.txt',
+  '/sitemap.xml',
+]);
 
-export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  const sessionCookie = request.cookies.get('session');
-  const isProtectedRoute = pathname.startsWith(protectedRoutes);
+// file requests like .png, .jpg, .css, .js, .svg…
+const PUBLIC_FILE = /\.(?:.*)$/;
 
-  if (isProtectedRoute && !sessionCookie) {
-    return NextResponse.redirect(new URL('/sign-in', request.url));
+export function middleware(req: NextRequest) {
+  const { pathname } = req.nextUrl;
+
+  // Always allow the homepage and public files
+  if (ALLOWED_EXACT.has(pathname) || PUBLIC_FILE.test(pathname)) {
+    return NextResponse.next();
   }
 
-  let res = NextResponse.next();
-
-  if (sessionCookie && request.method === 'GET') {
-    try {
-      const parsed = await verifyToken(sessionCookie.value);
-      const expiresInOneDay = new Date(Date.now() + 24 * 60 * 60 * 1000);
-
-      res.cookies.set({
-        name: 'session',
-        value: await signToken({
-          ...parsed,
-          expires: expiresInOneDay.toISOString()
-        }),
-        httpOnly: true,
-        secure: true,
-        sameSite: 'lax',
-        expires: expiresInOneDay
-      });
-    } catch (error) {
-      console.error('Error updating session:', error);
-      res.cookies.delete('session');
-      if (isProtectedRoute) {
-        return NextResponse.redirect(new URL('/sign-in', request.url));
-      }
-    }
+  // Allow Next internals / static asset pipelines
+  if (
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/images') ||
+    pathname.startsWith('/logos') ||
+    pathname.startsWith('/assets') ||
+    pathname.startsWith('/fonts')
+  ) {
+    return NextResponse.next();
   }
 
-  return res;
+  // Everything else -> redirect to home
+  const url = req.nextUrl.clone();
+  url.pathname = '/';
+  url.search = '';
+  return NextResponse.redirect(url);
 }
 
+// Skip running middleware for static asset paths to save cycles
 export const config = {
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
-  runtime: 'nodejs'
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)',
+  ],
 };
