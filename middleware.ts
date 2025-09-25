@@ -23,6 +23,7 @@ export function middleware(req: NextRequest) {
   // Allow Next internals / static asset pipelines
   if (
     pathname.startsWith('/_next') ||
+    pathname.startsWith('/demo') ||
     pathname.startsWith('/images') ||
     pathname.startsWith('/logos') ||
     pathname.startsWith('/assets') ||
