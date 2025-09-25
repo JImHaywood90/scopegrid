@@ -45,6 +45,31 @@ function useInView<T extends Element>() {
   return { ref, inView };
 }
 
+/* ----------------------- Centered wordmark at the top ----------------------- */
+function CenterLogo() {
+  return (
+    <div className="relative pt-1 pb-0">
+      {/* soft glow */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute left-1/2 -translate-x-1/2 -top-1 h-24 w-[420px] rounded-full bg-orange-200/30 blur-2xl"
+      />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-center">
+          <Image
+            src="/ScopeGridLogoLight.png"
+            alt="ScopeGrid"
+            width={560}
+            height={140}
+            className="h-16 sm:h-20 md:h-24 w-auto drop-shadow-sm"
+            priority
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ----------------- Floating mock dashboard (distinct look) ----------------- */
 function MockDashboard() {
   const logos = [
@@ -208,6 +233,8 @@ function FeatureCard({
 export default function HomePage() {
   return (
     <main>
+      <CenterLogo />
+
       {/* Distinct hero layout (gradient + asymmetrical) */}
       <section className="relative">
         {/* ⟵ remove overflow-hidden here */}
@@ -300,7 +327,7 @@ export default function HomePage() {
       {/* How it works (timeline) */}
       <section className="py-16 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl font-bold text-gray-900">
+          <h2 className="text-2xl text-center font-bold text-gray-900">
             How ScopeGrid works
           </h2>
           <div className="mt-8 grid gap-6 lg:grid-cols-3">
