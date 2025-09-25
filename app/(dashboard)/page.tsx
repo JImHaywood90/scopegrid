@@ -11,6 +11,7 @@ import {
   PlugZap,
   ArrowRight,
 } from "lucide-react";
+import WaitlistForm from "./WaitlistForm";
 
 /* -------------------------- Little utilities/hooks -------------------------- */
 function usePrefersReducedMotion() {
@@ -43,7 +44,6 @@ function useInView<T extends Element>() {
   }, []);
   return { ref, inView };
 }
-
 
 /* ----------------- Floating mock dashboard (distinct look) ----------------- */
 function MockDashboard() {
@@ -222,7 +222,7 @@ export default function HomePage() {
             <div className="lg:col-span-5 overflow-visible">
               {/* safety */}
               <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-gray-900">
-                One pane for every client’s{' '}
+                One pane for every client’s{" "}
                 <span className="text-orange-600">products & configs.</span>
               </h1>
               <p className="mt-4 text-lg text-gray-700">
@@ -345,6 +345,27 @@ export default function HomePage() {
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>
+          </div>
+        </div>
+      </section>
+
+      <section className="py-16 bg-white">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-6">
+            <h2 className="text-2xl font-bold text-gray-900">
+              Get early access
+            </h2>
+            <p className="mt-2 text-gray-600">
+              Join the waitlist and we’ll keep you posted with meaningful
+              updates.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border bg-white p-6 shadow-sm">
+            <WaitlistForm />
+            <p className="mt-3 text-xs text-gray-500">
+              We respect your inbox — no spam, ever.
+            </p>
           </div>
         </div>
       </section>
