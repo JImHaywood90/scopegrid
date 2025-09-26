@@ -50,6 +50,27 @@
       "when": 1758742685771,
       "tag": "0006_tan_sinister_six",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1758824765402,
+      "tag": "0007_harsh_daimon_hellstrom",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1758826450938,
+      "tag": "0008_peaceful_king_cobra",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1758837616637,
+      "tag": "0009_wandering_lady_vermin",
+      "breakpoints": true
     }
   ]
 }

@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const {
     slug, name, vendor = null, category = null, description = null,
-    logoLightPath, tags = [], matchTerms = [], links = null,
+    logoLightPath, logoDarkPath, tags = [], matchTerms = [], links = null,
   } = body || {};
 
   if (!slug || !name || !logoLightPath) {
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
 
   const [created] = await db.insert(productCatalog).values({
     slug, name, vendor, category, description,
-    logoLightPath, tags, matchTerms, links,
+    logoLightPath, logoDarkPath, tags, matchTerms, links,
   }).returning();
 
   return Response.json(created);

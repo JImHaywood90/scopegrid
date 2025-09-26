@@ -22,6 +22,7 @@ export async function PUT(req: NextRequest, ctx: Params) {
       category: body.category ?? null,
       description: body.description ?? null,
       logoLightPath: body.logoLightPath,
+      logoDarkPath: body.logoDarkPath ?? null,
       tags: Array.isArray(body.tags) ? body.tags : [],
       matchTerms: Array.isArray(body.matchTerms) ? body.matchTerms : [],
       links: body.links ?? null,

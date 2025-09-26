@@ -169,6 +169,50 @@ export const productCatalog = pgTable(
   })
 );
 
+// lib/db/schema.ts (add column + unique composite)
+export const productMatchOverrides = pgTable(
+  'product_match_overrides',
+  {
+    id: serial('id').primaryKey(),
+    teamId: integer('team_id').notNull(),
+    productSlug: varchar('product_slug', { length: 64 }).notNull(), // <-- string slug
+    companyIdentifier: varchar('company_identifier', { length: 120 }), // nullable = team-wide
+    terms: text('terms').array().$type<string[]>().notNull().default([]),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  // Keep (or remove) this simple index; the real dedupe is the SQL functional index we created above
+  (t) => ({
+    // This is fine to keep but doesn't handle NULLs specially.
+    uniqTeamProdCompany: uniqueIndex('uniq_override_team_product_company').on(
+      t.teamId,
+      t.productSlug,
+      t.companyIdentifier,
+    ),
+  })
+);
+
+export const tenantIntegrations = pgTable(
+  'tenant_integrations',
+  {
+    id: serial('id').primaryKey(),
+    teamId: integer('team_id').notNull().references(() => teams.id),
+    slug: varchar('slug', { length: 64 }).notNull(),      // e.g. 'connectwise', 'backupradar', 'cipp', 'smileback'
+    // Arbitrary config payload, e.g. { baseUrl, apiKey, tenantId, ... }
+    config: jsonb('config').$type<Record<string, unknown>>().notNull().default({}),
+    connected: boolean('connected').notNull().default(false),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (t) => ({
+    // One row per team per integration
+    uniqTeamIntegration: uniqueIndex('uniq_team_integration').on(t.teamId, t.slug),
+  })
+);
+
+// export types
+export type TenantIntegration = typeof tenantIntegrations.$inferSelect;
+export type ProductMatchOverride = typeof productMatchOverrides.$inferSelect;
 export type ProductCatalog = typeof productCatalog.$inferSelect;
 export type ConnectWiseCredentials = typeof connectwiseCredentials.$inferSelect;
 export type TenantSettings = typeof tenantSettings.$inferSelect;
