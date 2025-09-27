@@ -3,7 +3,7 @@
 import { ReactNode, useEffect } from 'react';
 import useSWR from 'swr';
 import { usePathname, useRouter } from 'next/navigation';
-import type { TeamDataWithMembers } from '@/lib/db/schema';
+import type { TeamDataWithMembers } from '@/lib/db/schema.v2';
 
 import AppHeader from '@/components/layout/AppHeader';
 import DashboardCenter from '@/components/layout/DashboardCenter';

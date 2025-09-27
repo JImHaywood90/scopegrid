@@ -1,13 +1,16 @@
+// app/api/connectwise/[...path]/route.ts
 import { NextResponse, type NextRequest } from 'next/server';
 import { cwHeadersAndBaseForCurrentUser } from '@/lib/connectwise';
-import { requireSession } from '@/lib/auth/requireSession';
+import { requireFronteggSession } from '@/lib/auth/frontegg';
+
 
 export const runtime = 'nodejs';
 
 /* ---------------- in-memory cache ---------------- */
-const DEFAULT_TTL_MS = Number.isFinite(Number(process.env.CW_CACHE_TTL_MS))
-  ? Number(process.env.CW_CACHE_TTL_MS)
-  : 30 * 60 * 1000; // 30 minutes
+const DEFAULT_TTL_MS =
+  Number.isFinite(Number(process.env.CW_CACHE_TTL_MS))
+    ? Number(process.env.CW_CACHE_TTL_MS)
+    : 30 * 60 * 1000;
 
 type CacheEntry = {
   status: number;
@@ -19,9 +22,7 @@ type CacheEntry = {
 
 const memoryCache = new Map<string, CacheEntry>();
 
-function normalizePath(pathJoined: string) {
-  return (pathJoined || '').replace(/^\/+/, ''); // no leading slashes
-}
+const normalizePath = (p: string) => (p || '').replace(/^\/+/, '');
 
 function stableQueryString(sp: URLSearchParams | Readonly<URLSearchParams>) {
   const pairs = Array.from(sp.entries())
@@ -43,11 +44,7 @@ function getCache(key: string): CacheEntry | null {
   return null;
 }
 
-function setCache(
-  key: string,
-  entry: Omit<CacheEntry, 'expiresAt'>,
-  ttlMs = DEFAULT_TTL_MS,
-) {
+function setCache(key: string, entry: Omit<CacheEntry, 'expiresAt'>, ttlMs = DEFAULT_TTL_MS) {
   memoryCache.set(key, { ...entry, expiresAt: Date.now() + ttlMs });
 }
 
@@ -79,82 +76,60 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<PathParams
 /* ---------------- forwarder with cache ---------------- */
 async function forward(req: NextRequest, ctx: { params: Promise<PathParams> }) {
   try {
-    // Gate: must be signed in
-    try {
-      await requireSession();
-    } catch (e: any) {
-      const status = e?.status || 401;
-      return NextResponse.json({ error: 'Unauthorized' }, { status });
-    }
+    // ✅ Gate with Frontegg
+    await requireFronteggSession();
 
-    // Resolve CW base + headers for THIS user/tenant
+    // ✅ Resolve CW creds for current Frontegg tenant
     const { baseUrl, headers } = await cwHeadersAndBaseForCurrentUser();
 
-    // Params & target URL
-    const { path } = await ctx.params; // 👈 await the promise per Next 15
-    const rawPath = (path?.join('/') || '').trim();
-    const normalized = normalizePath(rawPath);
+    // Next 15: await params
+    const { path } = await ctx.params;
+    const normalized = normalizePath((path?.join('/') || '').trim());
 
     const sp = req.nextUrl.searchParams; // ReadonlyURLSearchParams
-    const qsRaw = sp.toString();
-    const targetUrl = `${baseUrl}/${normalized}${qsRaw ? `?${qsRaw}` : ''}`;
+    const qs = sp.toString();
+    const targetUrl = `${baseUrl}/${normalized}${qs ? `?${qs}` : ''}`;
 
+    const isGet = req.method === 'GET';
     const bypass = !!sp.get('nocache');
-    const isGet = req.method.toUpperCase() === 'GET';
 
-    // Serve from cache for GET
     if (isGet && !bypass) {
       const key = buildCacheKey(req.method, normalized, sp);
       const hit = getCache(key);
       if (hit) {
         return new NextResponse(hit.body, {
           status: hit.status,
-          headers: {
-            'content-type': hit.contentType,
-            'x-cw-cache': 'HIT',
-          },
+          headers: { 'content-type': hit.contentType, 'x-cw-cache': 'HIT' },
         });
       }
     }
 
-    // Prepare request to CW
+    // Forward request (avoid stream body → use text to dodge duplex)
     const init: RequestInit = { method: req.method, headers };
     if (!['GET', 'HEAD'].includes(req.method)) {
-      const bodyText = await req.text(); // forward raw body
+      const bodyText = await req.text();
       if (bodyText) init.body = bodyText;
     }
 
-    // Forward
     const cwResp = await fetch(targetUrl, init);
     const contentType = cwResp.headers.get('content-type') || 'application/json';
     const text = await cwResp.text();
 
-    // Cache successful GETs
     if (isGet && !bypass && cwResp.ok) {
       const key = buildCacheKey(req.method, normalized, sp);
-      setCache(key, {
-        status: cwResp.status,
-        body: text,
-        contentType,
-        normalized,
-      });
+      setCache(key, { status: cwResp.status, body: text, contentType, normalized });
     }
 
-    // Invalidate on successful writes
     if (!isGet && cwResp.ok) {
       invalidateByPath(normalized);
     }
 
     return new NextResponse(text, {
       status: cwResp.status,
-      headers: {
-        'content-type': contentType,
-        'x-cw-cache': isGet ? (bypass ? 'BYPASS' : 'MISS') : 'WRITE',
-      },
+      headers: { 'content-type': contentType, 'x-cw-cache': isGet ? (bypass ? 'BYPASS' : 'MISS') : 'WRITE' },
     });
   } catch (err: any) {
-    const message = typeof err?.message === 'string' ? err.message : 'Proxy error';
-    const status = /auth|token|unauthor/i.test(message) ? 401 : 500;
-    return NextResponse.json({ error: message }, { status });
+    const status = err?.status ?? (/unauth|forbid|token/i.test(String(err?.message)) ? 401 : 500);
+    return NextResponse.json({ error: err?.message ?? 'Proxy error' }, { status });
   }
 }

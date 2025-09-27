@@ -1,49 +1,21 @@
-import { NextResponse } from 'next/server';
+// middleware.ts
 import type { NextRequest } from 'next/server';
-import { signToken, verifyToken } from '@/lib/auth/session';
+import { handleSessionOnEdge } from '@frontegg/nextjs/edge';
 
-const protectedRoutes = '/dashboard';
+export const middleware = async (request: NextRequest) => {
+  const { pathname, searchParams } = request.nextUrl;
 
-export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  const sessionCookie = request.cookies.get('session');
-  const isProtectedRoute = pathname.startsWith(protectedRoutes);
+  // Frontegg's handleSessionOnEdge now handles the internal bypass logic.
+  // Just pass the request + headers.
+  return handleSessionOnEdge({
+    request,
+    pathname,
+    searchParams,
+    headers: request.headers,
+  });
+};
 
-  if (isProtectedRoute && !sessionCookie) {
-    return NextResponse.redirect(new URL('/sign-in', request.url));
-  }
-
-  let res = NextResponse.next();
-
-  if (sessionCookie && request.method === 'GET') {
-    try {
-      const parsed = await verifyToken(sessionCookie.value);
-      const expiresInOneDay = new Date(Date.now() + 24 * 60 * 60 * 1000);
-
-      res.cookies.set({
-        name: 'session',
-        value: await signToken({
-          ...parsed,
-          expires: expiresInOneDay.toISOString()
-        }),
-        httpOnly: true,
-        secure: true,
-        sameSite: 'lax',
-        expires: expiresInOneDay
-      });
-    } catch (error) {
-      console.error('Error updating session:', error);
-      res.cookies.delete('session');
-      if (isProtectedRoute) {
-        return NextResponse.redirect(new URL('/sign-in', request.url));
-      }
-    }
-  }
-
-  return res;
-}
-
+// Only protect the dashboard and settings areas
 export const config = {
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
-  runtime: 'nodejs'
+  matcher: ['/dashboard/:path*', '/settings/:path*'],
 };

@@ -1,15 +1,26 @@
-import { NextRequest } from 'next/server';
+// app/api/tenant-settings/route.ts
+import { NextResponse } from 'next/server';
+import { getAppSession } from '@frontegg/nextjs/app';
 import { db } from '@/lib/db/drizzle';
-import { tenantSettings } from '@/lib/db/schema';
+import { tenantSettings } from '@/lib/db/schema.v2';
 import { eq } from 'drizzle-orm';
 
-export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const teamId = Number(searchParams.get('teamId'));
-  if (!teamId || Number.isNaN(teamId)) return new Response('Invalid teamId', { status: 400 });
-  const t = await db.query.tenantSettings.findFirst({
-    where: eq(tenantSettings.teamId, teamId),
-    columns: { subdomain: true, cwConfigured: true, onboardingCompleted: true },
+export const runtime = 'nodejs';
+
+export async function GET() {
+  const session = await getAppSession();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const feTenantId =
+    session.user?.tenantId ??
+    (session.user as any)?.tenantId ??
+    (session.user as any)?.tenantIds?.[0];
+
+  if (!feTenantId) return NextResponse.json({ error: 'No tenant' }, { status: 403 });
+
+  const ts = await db.query.tenantSettings.findFirst({
+    where: eq(tenantSettings.feTenantId, feTenantId),
   });
-  return Response.json(t || null);
+
+  return NextResponse.json(ts ?? { feTenantId, onboardingCompleted: false, cwConfigured: false });
 }

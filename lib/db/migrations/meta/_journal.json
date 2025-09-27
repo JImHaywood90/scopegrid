@@ -71,6 +71,13 @@
       "when": 1758837616637,
       "tag": "0009_wandering_lady_vermin",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1758967686278,
+      "tag": "0010_elite_justin_hammer",
+      "breakpoints": true
     }
   ]
 }

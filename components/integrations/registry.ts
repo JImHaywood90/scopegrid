@@ -14,19 +14,19 @@ export type IntegrationMeta = {
 };
 
 export const INTEGRATIONS: IntegrationMeta[] = [
-  {
-    slug: 'connectwise',
-    name: 'ConnectWise',
-    logoLight: '/connectwise.png',
-    logoDark: '/connectwise-dark.png', // optional
-    description: 'Pull agreements, additions & configurations.',
-    fields: [
-      { type: 'url', name: 'siteUrl', label: 'Site URL', placeholder: 'https://api-na.myconnectwise.net', required: true },
-      { type: 'text', name: 'companyId', label: 'Company ID', required: true },
-      { type: 'text', name: 'publicKey', label: 'Public Key', required: true },
-      { type: 'password', name: 'privateKey', label: 'Private Key', required: true },
-    ],
-  },
+  // {
+  //   slug: 'connectwise',
+  //   name: 'ConnectWise',
+  //   logoLight: '/connectwise.png',
+  //   logoDark: '/connectwise-dark.png', // optional
+  //   description: 'Pull agreements, additions & configurations.',
+  //   fields: [
+  //     { type: 'url', name: 'siteUrl', label: 'Site URL', placeholder: 'https://api-na.myconnectwise.net', required: true },
+  //     { type: 'text', name: 'companyId', label: 'Company ID', required: true },
+  //     { type: 'text', name: 'publicKey', label: 'Public Key', required: true },
+  //     { type: 'password', name: 'privateKey', label: 'Private Key', required: true },
+  //   ],
+  // },
   {
     slug: 'backupradar',
     name: 'BackupRadar',

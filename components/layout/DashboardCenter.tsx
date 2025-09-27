@@ -7,10 +7,10 @@ import { Input } from '@/components/ui/input';
 export default function DashboardCenter() {
   const router = useRouter();
   const sp = useSearchParams();
-  const qParam = sp.get('q') ?? '';
+  const qParam = sp?.get('q') ?? '';
 
   function setQs(next: Record<string, string | null>) {
-    const params = new URLSearchParams(sp.toString());
+    const params = new URLSearchParams(sp?.toString());
     Object.entries(next).forEach(([k, v]) => {
       if (!v) params.delete(k);
       else params.set(k, v);

@@ -1,9 +1,10 @@
 // components/layout/UserMenu.tsx
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import useSWR from 'swr';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@frontegg/nextjs';
 import { LayoutDashboard, Settings as SettingsIcon, LogOut } from 'lucide-react';
 import {
   DropdownMenu,
@@ -12,41 +13,49 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { signOut } from '@/app/(login)/actions';
-import type { User } from '@/lib/db/schema';
-
-const fetcher = (u: string) => fetch(u).then((r) => r.json());
 
 export default function UserMenu({ avatarClassName = 'h-9 w-9' }: { avatarClassName?: string }) {
   const [open, setOpen] = useState(false);
-  const { data: user } = useSWR<User>('/api/user', fetcher);
+  const router = useRouter();
+  const { user, isAuthenticated } = useAuth();
 
-  async function handleSignOut() {
-    await signOut();
-    window.location.href = '/';
-  }
+  const label = useMemo(() => {
+    if (user?.name && user.name.trim()) return user.name;
+    if (user?.email) return user.email;
+    return 'User';
+  }, [user]);
 
-  if (!user) return null;
+  const initials = useMemo(() => {
+    return label
+      .split(/[\s@._-]+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((s) => s[0]?.toUpperCase())
+      .join('') || 'U';
+  }, [label]);
 
-  // Nice initials: prefer name, otherwise email before @
-  const label = (user.name && user.name.trim().length > 0) ? user.name : (user.email ?? '');
-  const initials = label
-    .split(/[\s@._-]+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map(s => s[0]?.toUpperCase())
-    .join('');
+  const onLogout = () => {
+    // Hosted logout handled by Frontegg
+    router.replace('/account/logout');
+  };
+
+  if (!isAuthenticated) return null;
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger aria-label="User menu">
         <Avatar className={`cursor-pointer ${avatarClassName}`}>
-          <AvatarImage alt={user.name || ''} />
-          <AvatarFallback>{initials || 'U'}</AvatarFallback>
+          {/* @ts-ignore Frontegg user may expose profilePictureUrl */}
+          <AvatarImage alt={label} src={user?.profilePictureUrl || ''} />
+          <AvatarFallback>{initials}</AvatarFallback>
         </Avatar>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="end" className="flex flex-col gap-1">
+      <DropdownMenuContent align="end" className="flex flex-col gap-1 min-w-44">
+        <div className="px-2 py-1.5 text-xs text-muted-foreground truncate">
+          {label}
+        </div>
+
         <DropdownMenuItem asChild>
           <Link href="/dashboard" className="flex w-full items-center">
             <LayoutDashboard className="mr-2 h-4 w-4" />
@@ -61,14 +70,13 @@ export default function UserMenu({ avatarClassName = 'h-9 w-9' }: { avatarClassN
           </Link>
         </DropdownMenuItem>
 
-        <form action={handleSignOut} className="w-full">
-          <button type="submit" className="flex w-full">
-            <DropdownMenuItem className="w-full flex-1 cursor-pointer">
-              <LogOut className="mr-2 h-4 w-4" />
-              <span>Sign out</span>
-            </DropdownMenuItem>
-          </button>
-        </form>
+        <DropdownMenuItem
+          className="cursor-pointer"
+          onClick={onLogout}
+        >
+          <LogOut className="mr-2 h-4 w-4" />
+          <span>Sign out</span>
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

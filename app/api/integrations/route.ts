@@ -1,23 +1,34 @@
 // app/api/integrations/route.ts
 import { NextResponse } from 'next/server';
-import { and, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
-import { tenantIntegrations } from '@/lib/db/schema';
-import { getTeamForUser } from '@/lib/db/queries';
+import { tenantIntegrations } from '@/lib/db/schema.v2';
+import { getAppSession } from '@frontegg/nextjs/app';
+
+export const runtime = 'nodejs';
+
+async function requireFeTenantId(): Promise<string> {
+  const session = await getAppSession();
+  const feTenantId = session?.user?.tenantId ?? (session?.user as any)?.tenantIds?.[0];
+  if (!feTenantId) {
+    throw Object.assign(new Error('Unauthorized'), { status: 401 });
+  }
+  return feTenantId;
+}
 
 export async function GET() {
   try {
-    const team = await getTeamForUser();
-    if (!team) return NextResponse.json({ error: 'No team' }, { status: 403 });
+    const feTenantId = await requireFeTenantId();
 
     const rows = await db
       .select()
       .from(tenantIntegrations)
-      .where(eq(tenantIntegrations.teamId, team.id));
+      .where(eq(tenantIntegrations.feTenantId, feTenantId));
 
     return NextResponse.json({ items: rows });
   } catch (e: any) {
+    const status = e?.status ?? 500;
     console.error('GET /api/integrations failed:', e);
-    return NextResponse.json({ error: 'Internal error' }, { status: 500 });
+    return NextResponse.json({ error: e?.message ?? 'Internal error' }, { status });
   }
 }

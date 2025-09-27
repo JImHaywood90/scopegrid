@@ -22,9 +22,6 @@ export default function SettingsShell({ children }: { children: React.ReactNode 
   // Tailor the list as you like
   const navItems: NavItem[] = [
     { href: '/settings', icon: Users, label: 'Team' },
-    { href: '/settings/general', icon: Settings, label: 'General' },
-    { href: '/settings/activity', icon: Activity, label: 'Activity' },
-    { href: '/settings/security', icon: Shield, label: 'Security' },
     { href: '/settings/matching', icon: Shield, label: 'Custom Matching' },
     { href: '/settings/integrations', icon: Settings, label: 'Integrations' },
     { href: '/settings/connectwise', img: '/connectwise.png', label: 'ConnectWise' },

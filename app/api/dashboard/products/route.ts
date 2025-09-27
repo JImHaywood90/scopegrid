@@ -2,8 +2,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { and, eq, isNull, or } from "drizzle-orm";
 import { db } from "@/lib/db/drizzle";
-import { productCatalog, productMatchOverrides } from "@/lib/db/schema";
-import { getTeamForUser } from "@/lib/db/queries";
+import { productCatalog, productMatchOverrides } from "@/lib/db/schema.v2";
+import { getAppSession } from "@frontegg/nextjs/app"; 
 
 export const runtime = "nodejs";
 
@@ -44,7 +44,22 @@ const lc = (s: unknown) => (typeof s === "string" ? s.toLowerCase() : "");
 
 export async function GET(req: NextRequest) {
   try {
-    // Resolve company identifier (query param wins, else cookie)
+    // 0) Auth: require Frontegg session
+    const session = await getAppSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Frontegg session contains user & tenant. We need tenant for overrides.
+    // Common shapes: session.user, session.tenant, and/or session.tenantId.
+    const feTenantId =
+      // prefer explicit tenant id if present
+      (session as any)?.tenantId ||
+      (session as any)?.user?.tenantId ||
+      (session as any)?.tenant?.id ||
+      null;
+
+    // 1) Resolve company identifier (query param wins, else cookie)
     const sp = req.nextUrl.searchParams;
     const fromQuery =
       sp.get("companyIdentifier") || sp.get("CompanyIdentifier") || "";
@@ -52,8 +67,7 @@ export async function GET(req: NextRequest) {
       req.cookies.get("sg.companyIdentifier")?.value ||
       (req.headers
         .get("cookie")
-        ?.match(/(?:^|;\s*)sg\.companyIdentifier=([^;]+)/)?.[1] ??
-        "");
+        ?.match(/(?:^|;\s*)sg\.companyIdentifier=([^;]+)/)?.[1] ?? "");
     const companyIdentifier = fromQuery || fromCookie;
 
     if (!companyIdentifier) {
@@ -66,7 +80,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Catalog
+    // 2) Catalog (read-only; keep your existing table/data)
     const catalog = await db
       .select({
         id: productCatalog.id,
@@ -74,19 +88,18 @@ export async function GET(req: NextRequest) {
         name: productCatalog.name,
         vendor: productCatalog.vendor,
         category: productCatalog.category,
-        description: productCatalog.description, // ← NEW
+        description: productCatalog.description,
         logoLightPath: productCatalog.logoLightPath,
         logoDarkPath: productCatalog.logoDarkPath,
         matchTerms: productCatalog.matchTerms,
-        links: productCatalog.links, // ← NEW
+        links: productCatalog.links,
       })
       .from(productCatalog);
 
-    // Team-scoped overrides (team-wide NULL/'' + per-company)
-    const team = await getTeamForUser().catch(() => null);
+    // 3) Tenant-scoped overrides (Frontegg: feTenantId)
     const overridesBySlug = new Map<string, string[]>();
 
-    if (team) {
+    if (feTenantId) {
       const rows = await db
         .select({
           productSlug: productMatchOverrides.productSlug,
@@ -96,9 +109,10 @@ export async function GET(req: NextRequest) {
         .from(productMatchOverrides)
         .where(
           and(
-            eq(productMatchOverrides.teamId, team.id),
+            eq(productMatchOverrides.feTenantId, feTenantId),
             or(
               isNull(productMatchOverrides.companyIdentifier),
+              // drizzle-orm typing sometimes needs a cast for empty string
               eq(productMatchOverrides.companyIdentifier, "" as any),
               eq(productMatchOverrides.companyIdentifier, companyIdentifier)
             )
@@ -115,7 +129,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Bundle #1: agreements + configurations
+    // 4) Pull ConnectWise data via your bundled proxy route
     const firstBundle: BundleRequest[] = [
       {
         Version: "2020.1",
@@ -158,9 +172,7 @@ export async function GET(req: NextRequest) {
       const txt = await firstRes.text().catch(() => "");
       return new NextResponse(
         `Bundle(agreements+configs) failed ${firstRes.status}\n${txt}`,
-        {
-          status: firstRes.status,
-        }
+        { status: firstRes.status }
       );
     }
 
@@ -175,7 +187,7 @@ export async function GET(req: NextRequest) {
       .map((a) => a?.id)
       .filter((n): n is number => Number.isFinite(n));
 
-    // Bundle #2..N: additions per agreement (chunked)
+    // 5) Additions per agreement (chunked)
     const additions: any[] = [];
     if (agreementIds.length) {
       const addReqs: BundleRequest[] = agreementIds.map((id) => ({
@@ -220,15 +232,14 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Build haystack
+    // 6) Build haystack
     const texts: string[] = [];
     for (const add of additions) {
       const pid = add?.product?.identifier ?? add?.catalogItem?.identifier;
       if (pid) texts.push(lc(pid));
       if (add?.description) texts.push(lc(add.description));
       if (add?.invoiceDescription) texts.push(lc(add.invoiceDescription));
-      if (add?.manufacturerPartNumber)
-        texts.push(lc(add.manufacturerPartNumber));
+      if (add?.manufacturerPartNumber) texts.push(lc(add.manufacturerPartNumber));
       if (add?.vendorSku) texts.push(lc(add.vendorSku));
       if (add?.integrationXRef) texts.push(lc(add.integrationXRef));
     }
@@ -238,14 +249,14 @@ export async function GET(req: NextRequest) {
     }
     const haystack = texts.join("\n");
 
-    // Match (catalog + overrides)
+    // 7) Match (catalog + tenant overrides)
     const matchedSlugs = new Set<string>();
     let overridesConsidered = 0;
 
     for (const p of catalog) {
-      const global = (
-        p.matchTerms?.length ? p.matchTerms : [p.name, p.slug]
-      ).map((s) => s.toLowerCase());
+      const global = (p.matchTerms?.length ? p.matchTerms : [p.name, p.slug]).map((s) =>
+        s.toLowerCase()
+      );
       const extra = overridesBySlug.get(p.slug) ?? [];
       if (extra.length) overridesConsidered += extra.length;
 
@@ -270,6 +281,7 @@ export async function GET(req: NextRequest) {
         ).length,
       },
       companyIdentifier,
+      feTenantId: feTenantId ?? undefined,
     });
   } catch (e: any) {
     console.error("GET /api/dashboard/products (bundled) failed:", e);

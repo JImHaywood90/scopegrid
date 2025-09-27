@@ -2,18 +2,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { and, eq, isNull } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
-import { productMatchOverrides } from '@/lib/db/schema';
-import { getTeamForUser, getUser } from '@/lib/db/queries';
+import { productMatchOverrides } from '@/lib/db/schema.v2';
+import { getAppSession } from '@frontegg/nextjs/app';
 
 export const runtime = 'nodejs';
 
+async function requireFeTenantId(): Promise<string> {
+  const session = await getAppSession();
+  const feTenantId = session?.user?.tenantId ?? (session?.user as any)?.tenantIds?.[0];
+  if (!feTenantId) throw Object.assign(new Error('Unauthorized'), { status: 401 });
+  return feTenantId;
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const user = await getUser();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-    const team = await getTeamForUser();
-    if (!team) return NextResponse.json({ error: 'No team' }, { status: 403 });
+    const feTenantId = await requireFeTenantId();
 
     const body = await req.json().catch(() => ({}));
     const { productSlug, terms, companyIdentifier, mode } = body as {
@@ -31,10 +34,10 @@ export async function POST(req: NextRequest) {
       companyIdentifier && companyIdentifier.trim().length ? companyIdentifier.trim() : null;
 
     // normalize terms -> lowercased + unique
-    const rawTerms = Array.isArray(terms) ? terms : typeof terms === 'string' ? terms.split(',') : [];
+    const raw = Array.isArray(terms) ? terms : typeof terms === 'string' ? terms.split(',') : [];
     const cleaned = Array.from(
       new Set(
-        rawTerms
+        raw
           .map((s) => (typeof s === 'string' ? s.trim() : ''))
           .filter(Boolean)
           .map((s) => s.toLowerCase())
@@ -46,7 +49,7 @@ export async function POST(req: NextRequest) {
     }
 
     const whereClause = and(
-      eq(productMatchOverrides.teamId, team.id),
+      eq(productMatchOverrides.feTenantId, feTenantId),
       eq(productMatchOverrides.productSlug, productSlug),
       normalizedCompany === null
         ? isNull(productMatchOverrides.companyIdentifier)
@@ -54,7 +57,7 @@ export async function POST(req: NextRequest) {
     );
 
     if (mode === 'replace') {
-      // 1) Try UPDATE first
+      // Try UPDATE first
       const updated = await db
         .update(productMatchOverrides)
         .set({ terms: cleaned, updatedAt: new Date() })
@@ -65,17 +68,16 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true, mode: 'replace', updated: true });
       }
 
-      // 2) If nothing updated, INSERT (handle rare race with unique index)
+      // If nothing updated, INSERT (handle unique race)
       try {
         await db.insert(productMatchOverrides).values({
-          teamId: team.id,
+          feTenantId,
           productSlug,
           companyIdentifier: normalizedCompany,
           terms: cleaned,
         });
         return NextResponse.json({ ok: true, mode: 'replace', created: true });
       } catch (err: any) {
-        // If unique violation due to race, fallback to UPDATE
         if (err?.code === '23505') {
           await db
             .update(productMatchOverrides)
@@ -87,20 +89,19 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Default: APPEND mode (read-merge-write)
+    // Default: APPEND
     const existing = await db.query.productMatchOverrides.findFirst({ where: whereClause });
 
     if (!existing) {
       try {
         await db.insert(productMatchOverrides).values({
-          teamId: team.id,
+          feTenantId,
           productSlug,
           companyIdentifier: normalizedCompany,
           terms: cleaned,
         });
         return NextResponse.json({ ok: true, mode: 'append', created: true });
       } catch (err: any) {
-        // unique violation fallback → merge update
         if (err?.code === '23505') {
           const afterRace = await db.query.productMatchOverrides.findFirst({ where: whereClause });
           const merged = Array.from(new Set([...(afterRace?.terms ?? []), ...cleaned]));
@@ -123,6 +124,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, mode: 'append', updated: true });
   } catch (e: any) {
     console.error('POST /api/matching/override failed:', e);
-    return NextResponse.json({ error: e?.message || 'Internal error' }, { status: 500 });
+    return NextResponse.json({ error: e?.message || 'Internal error' }, { status: e?.status ?? 500 });
   }
 }

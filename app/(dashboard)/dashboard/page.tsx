@@ -37,10 +37,10 @@ const fetcher = async (u: string) => {
 export default function DashboardProducts() {
   const sp = useSearchParams();
   const companyParam =
-    sp.get("CompanyIdentifier") ?? sp.get("companyIdentifier") ?? null;
+    sp?.get("CompanyIdentifier") ?? sp?.get("companyIdentifier") ?? null;
 
-  const q = (sp.get("q") ?? "").toLowerCase();
-  const cat = sp.get("cat") ?? "";
+  const q = (sp?.get("q") ?? "").toLowerCase();
+  const cat = sp?.get("cat") ?? "";
 
   const { data, error, isLoading, isValidating, mutate } = useSWR<{
     matched: MatchedProduct[];

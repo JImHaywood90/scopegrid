@@ -1,5 +1,5 @@
 import { db } from '@/lib/db/drizzle';
-import { productCatalog } from '@/lib/db/schema';
+import { productCatalog } from '@/lib/db/schema.v2';
 import { eq } from 'drizzle-orm';
 
 /**

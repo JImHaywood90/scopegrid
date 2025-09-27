@@ -1,6 +1,6 @@
 import { and, eq } from 'drizzle-orm';
 import { db } from './drizzle';
-import { users, teams, teamMembers } from './schema';
+import { users, teams, teamMembers } from './schema.v2';
 import { hashPassword } from '@/lib/auth/session';
 
 // OPTIONAL: only run if you want Stripe products created
