@@ -1,11 +1,28 @@
 // app/(dashboard)/settings/integrations/[slug]/page.tsx
+import { Suspense } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { bySlug } from "@/components/integrations/registry";
-import IntegrationForm from "./IntegrationForm";
+import IntegrationForm from "../../IntegrationForm"; // client component
 
-export default function IntegrationEditPage({ params }: { params: { slug: string } }) {
-  const { slug } = params;
+type Params = { slug: string };
+
+function FormFallback() {
+  return (
+    <div className="rounded-2xl border border-slate-200/70 dark:border-slate-700/60 p-4 animate-pulse">
+      <div className="h-5 w-40 rounded bg-slate-200 dark:bg-slate-700" />
+      <div className="mt-3 h-10 w-full rounded bg-slate-200 dark:bg-slate-700" />
+      <div className="mt-3 h-10 w-2/3 rounded bg-slate-200 dark:bg-slate-700" />
+    </div>
+  );
+}
+
+export default async function IntegrationEditPage({
+  params,
+}: {
+  params: Promise<Params>;
+}) {
+  const { slug } = await params;
   const meta = bySlug[slug];
 
   if (!meta) {
@@ -40,8 +57,12 @@ export default function IntegrationEditPage({ params }: { params: { slug: string
         </Link>
       </div>
 
-      {/* Integration form */}
-      <IntegrationForm slug={slug} />
+      <h1 className="text-lg lg:text-2xl font-medium mb-4">{meta.name}</h1>
+
+      {/* Client component in Suspense to satisfy CSR-bailout */}
+      <Suspense fallback={<FormFallback />}>
+        <IntegrationForm slug={slug} />
+      </Suspense>
     </section>
   );
 }

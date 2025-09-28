@@ -28,6 +28,19 @@ export const INTEGRATIONS: IntegrationMeta[] = [
     ],
   },
   {
+    slug: 'itglue',
+    name: 'IT Glue',
+    logoLight: '/logos/square/itglue.png',
+    logoDark: '/logos/square/itglue.png', // optional
+    description: "Embed company dashboard in Each organisation's Quick Notes or Flexible Assets. Deploy automatically.",
+    fields: [
+      { type: 'url', name: 'siteUrl', label: 'Site URL', placeholder: 'https://*.itglue.net', required: true },
+      { type: 'text', name: 'companyId', label: 'Company ID', required: true },
+      { type: 'text', name: 'publicKey', label: 'Public Key', required: true },
+      { type: 'password', name: 'privateKey', label: 'Private Key', required: true },
+    ],
+  },
+  {
     slug: 'backupradar',
     name: 'BackupRadar',
     logoLight: '/integrations/backupradar.png',

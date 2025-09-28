@@ -1,18 +1,44 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   PanelsTopLeft,
   ScanSearch,
   ShieldCheck,
   PlugZap,
   ArrowRight,
+  ExternalLink,
+  ServerCog,
+  GitMerge,
+  Database,
+  Building2,
+  Globe2,
+  LockKeyhole,
+  Mail,
+  Grid,
 } from "lucide-react";
+import PricingSectionClient from "@/components/pricing/PricingSection.client";
+import {
+  SheetTrigger,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  Sheet,
+} from "@/components/ui/sheet";
+import MockDashboard from "@/components/homepage/MockDashboard";
 
-/* -------------------------- Little utilities/hooks -------------------------- */
+/* -------------------------------- utils -------------------------------- */
 function usePrefersReducedMotion() {
   const [reduced, setReduced] = useState(false);
   useEffect(() => {
@@ -33,10 +59,7 @@ function useInView<T extends Element>() {
     if (!ref.current || typeof IntersectionObserver === "undefined") return;
     const io = new IntersectionObserver(
       (entries) => setInView(entries[0]?.isIntersecting ?? true),
-      {
-        threshold: 0,
-        rootMargin: "0px",
-      }
+      { threshold: 0 }
     );
     io.observe(ref.current);
     return () => io.disconnect();
@@ -44,125 +67,203 @@ function useInView<T extends Element>() {
   return { ref, inView };
 }
 
+/* -------------------------- left aligned wordmark -------------------------- */
+// function LeftLogo() {
+//   return (
+//     <div className="relative pt-1">
+//       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+//         <div className="flex items-left justify-left">
+//           <img
+//             src="/ScopeGridLogoLight.png"
+//             alt="ScopeGrid"
+//             width={560}
+//             height={140}
+//             className="h-16 sm:h-20 md:h-24 w-auto drop-shadow-sm"
+//           />
+//         </div>
+//       </div>
+//     </div>
+//   );
+// }
 
-export function RotatingWords() {
-  // What you cycle through
-  const words = useMemo(
-    () => ['M365 stack.', 'security stack.', 'backup stack.', 'RMM stack.'],
-    []
-  );
-  // Keep width stable using the longest word
-  const longest = useMemo(
-    () => words.reduce((a, b) => (a.length >= b.length ? a : b)),
-    [words]
-  );
-
-  const [idx, setIdx] = useState(0);
-  const [fadeKey, setFadeKey] = useState(0); // forces CSS transition retrigger
-  const timerRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    const tick = () => {
-      setIdx((i) => (i + 1) % words.length);
-      setFadeKey((k) => k + 1);
-    };
-    timerRef.current = window.setInterval(tick, 4000);
-    return () => {
-      if (timerRef.current) window.clearInterval(timerRef.current);
-    };
-  }, [words.length]);
-
+function PricingTeaser() {
   return (
-    <span
-      className="
-        relative inline-grid align-baseline whitespace-nowrap
-      "
-      style={{ gridTemplateColumns: '1fr' }}
-    >
-      {/* Ghost sets stable width; no overflow/mask anywhere */}
-      <span className="invisible select-none pointer-events-none">
-        {longest}&nbsp;
-      </span>
+    <section id="pricing" className="py-16 bg-white dark:bg-slate-950">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-left mb-6">
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-50">
+            Pricing
+          </h2>
+          <p className="mt-2 text-slate-600 dark:text-slate-300">
+            We’re finalising plans tailored for MSPs. Register interest and
+            we’ll keep you posted.
+          </p>
+        </div>
 
-      {/* Actual word; stacked exactly over the ghost */}
-      <span
-        key={fadeKey}
-        className="
-          col-start-1 row-start-1
-          text-orange-600
-          transition-opacity duration-700 ease-out
-          motion-reduce:transition-none
-        "
-        // Start slightly transparent then fade to 1; previous text remains under (same width) so no clipping
-        style={{ opacity: 1 }}
-      >
-        {words[idx]}
-      </span>
-    </span>
-  );
-}
-
-/* ----------------- Floating mock dashboard (distinct look) ----------------- */
-function MockDashboard() {
-  const logos = [
-    { src: "/logos/microsoft250.png", alt: "Microsoft 365" },
-    { src: "/logos/sentinel250.png", alt: "SentinelOne" },
-    { src: "/logos/Veeam250_light.png", alt: "Veeam" },
-    { src: "/logos/mimecast250.png", alt: "Mimecast" },
-    { src: "/logos/meraki250.png", alt: "Cisco Meraki" },
-    { src: "/logos/datto250.png", alt: "Datto" },
-    { src: "/logos/acronis250_light.png", alt: "Acronis" },
-    { src: "/logos/webroot250_light.png", alt: "Webroot" },
-  ];
-
-  return (
-    <div className="relative w-full">
-      {/* glow */}
-      <div className="pointer-events-none absolute -inset-8 rounded-[28px] bg-gradient-to-tr from-orange-300/30 via-orange-200/20 to-transparent blur-2xl" />
-      <div className="relative border rounded-2xl shadow-sm bg-white/90 backdrop-blur-sm overflow-hidden">
-        {/* faux toolbar */}
-        <div className="flex items-center gap-2 h-10 px-4 border-b bg-white">
-          <span className="size-2.5 rounded-full bg-red-400" />
-          <span className="size-2.5 rounded-full bg-amber-400" />
-          <span className="size-2.5 rounded-full bg-green-400" />
-          <div className="ml-3 text-xs text-gray-500 truncate">
-            ScopeGrid — Client Products
+        <div className="relative overflow-hidden rounded-2xl border border-slate-200/70 dark:border-slate-700/60">
+          {/* Background layer (gradient + subtle grid) */}
+          <div className="absolute inset-0 -z-10">
+            <div className="absolute inset-0 bg-gradient-to-br from-orange-100/60 via-white to-white dark:from-slate-900 dark:via-slate-950 dark:to-slate-950" />
+            <div
+              className="pointer-events-none absolute inset-0 opacity-[0.08] mix-blend-overlay"
+              style={{
+                backgroundImage:
+                  "radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)",
+                backgroundSize: "22px 22px",
+                color: "#0f172a" /* slate-900 (used as grid dot color) */,
+              }}
+            />
+            <div className="absolute -top-24 -right-24 size-[420px] rounded-full bg-orange-300/25 blur-3xl dark:bg-orange-400/10" />
           </div>
-        </div>
-        {/* search/filter bar mock */}
-        <div className="flex gap-2 items-center px-4 py-3 border-b bg-orange-50/60">
-          <div className="h-8 w-40 rounded-full bg-white border" />
-          <div className="h-8 w-24 rounded-full bg-white border" />
-          <div className="h-8 w-24 rounded-full bg-white border" />
-        </div>
-        {/* grid */}
-        <div className="p-4 sm:p-6">
-          <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4">
-            {logos.map((l, i) => (
+
+          {/* Frosted overlay */}
+          <div className="backdrop-blur-sm bg-white/40 dark:bg-slate-900/30 p-4 sm:p-6">
+            {/* Solid content card to ensure readability */}
+            <div
+              className="relative mx-auto max-w-3xl rounded-xl border
+                            bg-white/95 dark:bg-slate-900/80
+                            border-slate-200/70 dark:border-slate-700/60 p-8 shadow-sm"
+            >
               <div
-                key={i}
-                className="border rounded-xl h-28 bg-white flex items-center justify-center hover:shadow-sm transition-shadow"
-                aria-label={l.alt}
-                title={l.alt}
+                className="inline-flex items-center rounded-full border px-3 py-1 text-xs
+                              border-amber-300/70 bg-amber-50/80 text-amber-800
+                              dark:border-amber-900/40 dark:bg-amber-900/30 dark:text-amber-200"
               >
-                <Image
-                  src={l.src}
-                  alt={l.alt}
-                  width={240}
-                  height={120}
-                  className="max-h-12 w-auto object-contain"
-                  priority={i < 4}
-                />
+                Preview
               </div>
-            ))}
+
+              <h3 className="mt-3 text-xl font-semibold text-slate-900 dark:text-slate-50">
+                Pricing coming soon
+              </h3>
+              <p className="mt-2 text-slate-600 dark:text-slate-300">
+                Transparent per-tenant plans with a free trial and early-bird
+                perks. We’ll announce tiers shortly.
+              </p>
+              {/* 
+              <div className="mt-6 flex items-center justify-center gap-3">
+                <a
+                  href="#waitlist"
+                  className="inline-flex items-center rounded-full bg-orange-500 px-5 py-2 text-white hover:bg-orange-600"
+                >
+                  Join the waitlist
+                </a>
+                <a
+                  href="/contact"
+                  className="inline-flex items-center rounded-full border px-5 py-2
+                             border-slate-300 text-slate-700 hover:bg-slate-50
+                             dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800/60"
+                >
+                  Talk to us
+                </a>
+              </div> */}
+
+              <p className="mt-3 text-xs text-slate-500 dark:text-slate-400 text-center">
+                We’re also offering free onboarding for the first cohort of
+                MSPs.
+              </p>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </section>
   );
 }
 
-/* --------------------------- Scrolling logo marquee ------------------------- */
+/* -------------------- mock dashboard matching the app ------------------- */
+// function MockDashboard() {
+//   const logos = [
+//     {
+//       light: "/logos/meraki250_light.png",
+//       dark: "/logos/meraki250.png",
+//       alt: "Cisco Meraki",
+//     },
+//     {
+//       light: "/logos/microsoft250.png",
+//       dark: "/logos/microsoft250.png",
+//       alt: "Microsoft 365",
+//     },
+//     {
+//       light: "/logos/AutoElevate250_light.png",
+//       dark: "/logos/AutoElevate250.png",
+//       alt: "AutoElevate",
+//     },
+//     {
+//       light: "/logos/automate250_light.png",
+//       dark: "/logos/automate250.png",
+//       alt: "ConnectWise RMM",
+//     },
+//   ];
+
+//   return (
+//     <div className="relative w-full">
+//       <div className="pointer-events-none absolute -inset-8 rounded-[28px] bg-gradient-to-tr from-orange-300/20 via-orange-200/10 to-transparent blur-2xl" />
+//       <div
+//         className="relative rounded-2xl overflow-hidden
+//                       border border-slate-200/70 dark:border-slate-700/60
+//                       bg-white/85 dark:bg-slate-900/60 backdrop-blur"
+//       >
+//         {/* app-like header bar */}
+//         <div
+//           className="flex items-center justify-between h-12 px-4
+//                         border-b border-slate-200/70 dark:border-slate-700/60
+//                         bg-white/80 dark:bg-slate-800/70"
+//         >
+//           <div className="flex items-center gap-2 text-xs text-muted-foreground">
+//             <span className="size-2 rounded-full bg-red-400/80" />
+//             <span className="size-2 rounded-full bg-amber-400/80" />
+//             <span className="size-2 rounded-full bg-green-400/80" />
+//             <span className="ml-3 hidden sm:inline">
+//               ScopeGrid — Client Products
+//             </span>
+//           </div>
+//           <div className="flex items-center gap-2 text-xs text-muted-foreground">
+//             <div className="h-7 w-40 rounded-full bg-white/60 dark:bg-slate-900/40 border border-slate-200/60 dark:border-slate-700/60" />
+//           </div>
+//         </div>
+
+//         {/* grid of product cards (condensed like your real cards) */}
+//         <div className="p-4 sm:p-6">
+//           <div className="grid gap-4 grid-cols-2 sm:grid-cols-3">
+//             {logos.map((l, i) => (
+//               <div
+//                 key={i}
+//                 className="rounded-2xl overflow-hidden
+//                            bg-white/85 dark:bg-slate-900/65
+//                            border border-slate-200/70 dark:border-slate-700/60
+//                            hover:shadow-md hover:border-slate-300/70 dark:hover:border-slate-600/70
+//                            transition-all"
+//               >
+//                 {/* header with logo + link icon (no extra vertical space) */}
+//                 <div className="flex items-start justify-between px-3 pt-3">
+//                   <img
+//                     src={l.light}
+//                     alt={l.alt}
+//                     width={220}
+//                     height={120}
+//                     className="max-h-10 w-auto object-contain"
+//                   />
+//                   <span
+//                     className="inline-flex h-7 w-7 items-center justify-center rounded-full
+//                                    bg-slate-100/80 dark:bg-slate-800/70 border
+//                                    border-slate-200/70 dark:border-slate-700/60"
+//                   >
+//                     <ExternalLink className="h-3.5 w-3.5 opacity-70" />
+//                   </span>
+//                 </div>
+//                 {/* description area */}
+//                 <div className="px-3 pb-3 pt-2 text-sm leading-snug text-muted-foreground min-h-[56px]">
+//                   {l.alt}
+//                 </div>
+//               </div>
+//             ))}
+//           </div>
+//         </div>
+//       </div>
+//     </div>
+//   );
+// }
+
+/* --------------------------- scrolling logo strip -------------------------- */
 function LogoMarquee() {
   const baseLogos = useMemo(
     () => [
@@ -174,6 +275,29 @@ function LogoMarquee() {
       { src: "/logos/datto250.png", alt: "Datto" },
       { src: "/logos/acronis250.png", alt: "Acronis" },
       { src: "/logos/webroot250.png", alt: "Webroot" },
+      { src: "/logos/AutoElevate250.png", alt: "AutoElevate" },
+      { src: "/logos/automate250.png", alt: "ConnectWise RMM" },
+      { src: "/logos/unifi250.png", alt: "Unifi" },
+      { src: "/logos/sonicwall250.png", alt: "Sonicwall" },
+      { src: "/logos/storagecraft250.png", alt: "StorageCraft" },
+      { src: "/logos/usecure250.png", alt: "uSecure" },
+      { src: "/logos/keeper250.png", alt: "Keeper" },
+      { src: "/logos/barracuda250.png", alt: "Barracuda" },
+      { src: "/logos/auvik250.png", alt: "Auvik" },
+      { src: "/logos/fortinet250.png", alt: "Fortinet" },
+      { src: "/logos/knowbe4250.png", alt: "KnowBe4" },
+      { src: "/logos/activtrak250.png", alt: "ActivTrak" },
+      { src: "/logos/arcserve250.png", alt: "Arcserve" },
+      { src: "/logos/cove250.png", alt: "Cove" },
+      { src: "/logos/crossware250.png", alt: "Crossware" },
+      { src: "/logos/mailstore250.png", alt: "MailStore" },
+      { src: "/logos/miradore250.png", alt: "Miradore" },
+      { src: "/logos/phishingbox250.png", alt: "PhishingBox" },
+      { src: "/logos/qualys250.png", alt: "Qualys" },
+      { src: "/logos/skykick250.png", alt: "Skykick" },
+      { src: "/logos/smtp2go250.png", alt: "SMTP2Go" },
+      { src: "/logos/zyxel250.png", alt: "Zyxel" },
+      // add more here freely
     ],
     []
   );
@@ -184,48 +308,70 @@ function LogoMarquee() {
   const { ref, inView } = useInView<HTMLDivElement>();
   const reduced = usePrefersReducedMotion();
 
+  const [showAll, setShowAll] = useState(false);
+
   return (
-    <div className="bg-gray-900 py-10">
+    <section className="bg-slate-900 py-10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <p className="text-center text-gray-300 text-sm uppercase tracking-wider">
-          Auto-detects from your ConnectWise data
+        <p className="text-left text-slate-300 text-sm uppercase tracking-wider">
+          Auto-detects products from your PSA
         </p>
 
         <div
           ref={ref}
-          className="group relative mt-8 overflow-hidden rounded-xl bg-gray-900/40 ring-1 ring-white/5"
+          className="relative mt-8 overflow-hidden rounded-xl ring-1 ring-white/5"
         >
+          {/* edge masks to avoid harsh ends */}
+          <div className="pointer-events-none absolute left-0 top-0 h-full w-16 z-10 bg-gradient-to-r from-slate-900 via-slate-900/70 to-transparent" />
+          <div className="pointer-events-none absolute right-0 top-0 h-full w-16 z-10 bg-gradient-to-l from-slate-900 via-slate-900/70 to-transparent" />
+
           <div
-            className={`flex items-center gap-12 will-change-transform whitespace-nowrap py-6 ${
-              reduced ? "" : "marquee"
-            } ${inView ? "" : "paused"} group-hover:paused`}
+            className={[
+              "flex items-center gap-10 will-change-transform whitespace-nowrap py-6",
+              reduced ? "" : "sg-marquee",
+              inView ? "" : "sg-paused",
+            ].join(" ")}
             aria-hidden="true"
+            // longer = slower; tweak freely
+            style={
+              reduced
+                ? undefined
+                : ({ ["--sg-speed" as any]: "160s" } as React.CSSProperties)
+            }
           >
             {logos.map((l, i) => (
-              <Image
+              <div
                 key={`${l.alt}-${i}`}
-                src={l.src}
-                alt={l.alt}
-                width={220}
-                height={88}
-                className="h-10 sm:h-12 md:h-14 w-auto object-contain opacity-85 hover:opacity-100 transition"
-              />
+                className="shrink-0 rounded-xl border border-white/10 bg-white/5 px-3 py-2"
+                title={l.alt}
+                aria-label={l.alt}
+              >
+                <Image
+                  src={l.src}
+                  alt={l.alt}
+                  width={220}
+                  height={88}
+                  className="h-10 sm:h-12 md:h-14 w-auto object-contain opacity-90"
+                  priority={i < 6}
+                />
+              </div>
             ))}
           </div>
+
           <style jsx>{`
-            .marquee {
-              animation: marquee 60s linear infinite;
+            .sg-marquee {
+              animation: sg-scroll var(--sg-speed, 300s) linear infinite;
             }
-            .paused {
+            .sg-paused {
               animation-play-state: paused !important;
             }
             @media (prefers-reduced-motion: reduce) {
-              .marquee {
-                animation: none;
-                transform: none;
+              .sg-marquee {
+                animation: none !important;
+                transform: none !important;
               }
             }
-            @keyframes marquee {
+            @keyframes sg-scroll {
               0% {
                 transform: translateX(0);
               }
@@ -235,12 +381,53 @@ function LogoMarquee() {
             }
           `}</style>
         </div>
+
+        {/* CTA to show everything */}
+        <div className="mt-6 flex justify-left">
+          <Button
+            variant="outline"
+            className="rounded-full"
+            onClick={() => setShowAll(true)}
+          >
+            View full catalog
+          </Button>
+        </div>
+
+        {/* Dark dialog with all logos (no light/dark juggling) */}
+        <Dialog open={showAll} onOpenChange={setShowAll}>
+          <DialogContent className="max-w-4xl bg-slate-900 text-slate-100 border border-slate-700">
+            <DialogHeader>
+              <DialogTitle className="text-slate-100">
+                Supported products
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 max-h-[70vh] overflow-auto">
+              {baseLogos.map((l) => (
+                <div
+                  key={l.alt}
+                  className="flex items-center justify-center rounded-xl border border-slate-700 bg-slate-800 p-3"
+                  title={l.alt}
+                  aria-label={l.alt}
+                >
+                  <Image
+                    src={l.src}
+                    alt={l.alt}
+                    width={220}
+                    height={88}
+                    className="max-h-10 w-auto object-contain"
+                  />
+                </div>
+              ))}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
-    </div>
+    </section>
   );
 }
 
-/* --------------------------- Feature card block --------------------------- */
+/* ----------------------------- feature card ----------------------------- */
 function FeatureCard({
   icon,
   title,
@@ -251,160 +438,755 @@ function FeatureCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border bg-white p-6 hover:shadow-sm transition-shadow">
+    <div
+      className="rounded-2xl border bg-white/90 dark:bg-slate-900/60 backdrop-blur p-6
+                    hover:shadow-md transition-shadow
+                    border-slate-200/70 dark:border-slate-700/60"
+    >
       <div className="flex items-center justify-center h-12 w-12 rounded-xl bg-orange-500 text-white">
         {icon}
       </div>
-      <h3 className="mt-4 text-lg font-semibold text-gray-900">{title}</h3>
-      <p className="mt-2 text-gray-600">{children}</p>
+      <h3 className="mt-4 text-lg font-semibold text-slate-900 dark:text-slate-50">
+        {title}
+      </h3>
+      <p className="mt-2 text-slate-600 dark:text-slate-300">{children}</p>
     </div>
   );
 }
 
-/* --------------------------------- Page ---------------------------------- */
+function Hero() {
+  return (
+    <section className="relative">
+      <div className="pointer-events-none absolute inset-0 -z-10">
+        <div className="absolute inset-0 bg-gradient-to-br from-orange-50 via-white to-white dark:from-slate-900 dark:via-slate-950 dark:to-slate-950" />
+        <div className="absolute -top-24 -right-24 size-[400px] rounded-full bg-orange-200/30 dark:bg-orange-400/10 blur-3xl" />
+      </div>
+
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24">
+        <div className="grid lg:grid-cols-12 gap-10 items-center">
+          <div className="lg:col-span-5">
+            <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-slate-50">
+              One pane for every client’s{" "}
+              <span className="text-orange-600">products & services.</span>
+            </h1>
+            <p className="mt-4 text-lg text-slate-700 dark:text-slate-300">
+              ScopeGrid reads your <b>PSA (ConnectWise or Halo)</b> to build a
+              clean dashboard per customer. See M365, security, backup,
+              networking and more—with quick links to each portal.
+            </p>
+            <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+              Secure • tenant-scoped • built for MSPs
+            </p>
+          </div>
+
+          <div className="lg:col-span-7 overflow-hidden">
+            <MockDashboard />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Features() {
+  return (
+    <section className="py-16 bg-white dark:bg-slate-950">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          <FeatureCard
+            icon={<ScanSearch className="h-6 w-6" />}
+            title="Automatic discovery from your PSA"
+          >
+            We read agreements, additions and configurations in{" "}
+            <b>ConnectWise or Halo</b> to identify the tools each client uses—no
+            manual tagging.
+          </FeatureCard>
+
+          <FeatureCard
+            icon={<PanelsTopLeft className="h-6 w-6" />}
+            title="Clean, card-based client view"
+          >
+            Vendor logos, clear descriptions and deep links. Filter fast and
+            find what you need in seconds.
+          </FeatureCard>
+
+          <FeatureCard
+            icon={<ShieldCheck className="h-6 w-6" />}
+            title="Secure by design"
+          >
+            Everything is scoped to your team and the selected client.
+            Credentials are encrypted and never exposed in the browser.
+          </FeatureCard>
+
+          <FeatureCard
+            icon={<PlugZap className="h-6 w-6" />}
+            title="Fast, cache-aware experience"
+          >
+            Smart batching and caching keep pages snappy—even for larger
+            tenants.
+          </FeatureCard>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Integrations() {
+  return (
+    <section className="py-14 bg-white dark:bg-slate-950" id="integrations">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between gap-4 mb-6">
+          <div>
+            <h2 className="text-xl md:text-2xl font-semibold text-slate-900 dark:text-slate-50">
+              Integrations built for MSP workflows
+            </h2>
+          </div>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {/* PSA (ConnectWise + Halo) */}
+          <div className="rounded-2xl border border-slate-200/70 dark:border-slate-700/60 bg-white/90 dark:bg-slate-900/60 backdrop-blur p-5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1">
+                  <Image
+                    src="/logos/square/itglue.png"
+                    alt="ConnectWise"
+                    width={24}
+                    height={24}
+                    className="h-6 w-6"
+                  />
+                </div>
+                <span className="font-medium">IT Glue</span>
+              </div>
+              <span
+                className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px]
+                               border-blue-200 bg-blue-50 text-blue-700
+                               dark:border-blue-900/40 dark:bg-blue-900/30 dark:text-blue-300"
+              >
+                ● Quick Refs
+              </span>
+            </div>
+            <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
+              Embed client product lists directly in IT Glue for easy reference
+              by your techs and AMs.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <span className="rounded-full border px-2 py-0.5 text-[11px] text-slate-600 dark:text-slate-300">
+                Per-client views
+              </span>
+              <span className="rounded-full border px-2 py-0.5 text-[11px] text-slate-600 dark:text-slate-300">
+                Zero agents
+              </span>
+            </div>
+          </div>
+
+          {/* BackupRadar */}
+          <div className="rounded-2xl border border-slate-200/70 dark:border-slate-700/60 bg-white/90 dark:bg-slate-900/60 backdrop-blur p-5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Image
+                  src="/integrations/backupradar.png"
+                  alt="BackupRadar"
+                  width={28}
+                  height={28}
+                  className="h-7 w-7"
+                />
+                <span className="font-medium">BackupRadar</span>
+              </div>
+              <span
+                className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px]
+                               border-blue-200 bg-blue-50 text-blue-700
+                               dark:border-blue-900/40 dark:bg-blue-900/30 dark:text-blue-300"
+              >
+                ● Health signals
+              </span>
+            </div>
+            <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
+              See backup health alongside each client’s tools to speed triage.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <span className="rounded-full border px-2 py-0.5 text-[11px] text-slate-600 dark:text-slate-300">
+                Client rollups
+              </span>
+              <span className="rounded-full border px-2 py-0.5 text-[11px] text-slate-600 dark:text-slate-300">
+                Drill-downs
+              </span>
+            </div>
+          </div>
+
+          {/* CIPP */}
+          <div className="rounded-2xl border border-slate-200/70 dark:border-slate-700/60 bg-white/90 dark:bg-slate-900/60 backdrop-blur p-5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Image
+                  src="/integrations/cipp.png"
+                  alt="CIPP"
+                  width={28}
+                  height={28}
+                  className="h-7 w-7"
+                />
+                <span className="font-medium">CIPP (M365)</span>
+              </div>
+              <span
+                className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px]
+                               border-indigo-200 bg-indigo-50 text-indigo-700
+                               dark:border-indigo-900/40 dark:bg-indigo-900/30 dark:text-indigo-300"
+              >
+                ● Posture
+              </span>
+            </div>
+            <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
+              Put tenant posture and quick actions where your team already
+              works.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <span className="rounded-full border px-2 py-0.5 text-[11px] text-slate-600 dark:text-slate-300">
+                Secure score
+              </span>
+              <span className="rounded-full border px-2 py-0.5 text-[11px] text-slate-600 dark:text-slate-300">
+                Task links
+              </span>
+            </div>
+          </div>
+
+          {/* SmileBack */}
+          <div className="rounded-2xl border border-slate-200/70 dark:border-slate-700/60 bg-white/90 dark:bg-slate-900/60 backdrop-blur p-5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Image
+                  src="/integrations/smileback.png"
+                  alt="SmileBack"
+                  width={28}
+                  height={28}
+                  className="h-7 w-7"
+                />
+                <span className="font-medium">SmileBack</span>
+              </div>
+              <span
+                className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px]
+                               border-amber-200 bg-amber-50 text-amber-700
+                               dark:border-amber-900/40 dark:bg-amber-900/30 dark:text-amber-300"
+              >
+                ● Feedback
+              </span>
+            </div>
+            <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
+              Keep CSAT/NPS context next to the tools your AMs and techs
+              discuss.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <span className="rounded-full border px-2 py-0.5 text-[11px] text-slate-600 dark:text-slate-300">
+                Trends
+              </span>
+              <span className="rounded-full border px-2 py-0.5 text-[11px] text-slate-600 dark:text-slate-300">
+                Ticket links
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Roadmap */}
+        <div className="mt-6 flex flex-wrap items-center gap-3 text-sm">
+          <span className="text-slate-500 dark:text-slate-400">
+            Also on our roadmap:
+          </span>
+          <span className="rounded-full border px-2 py-0.5 text-[11px] text-slate-600 dark:text-slate-300">
+            NinjaOne
+          </span>
+          <span className="rounded-full border px-2 py-0.5 text-[11px] text-slate-600 dark:text-slate-300">
+            Autotask
+          </span>
+          <span className="rounded-full border px-2 py-0.5 text-[11px] text-slate-600 dark:text-slate-300">
+            Crewhu
+          </span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function HowItWorks() {
+  return (
+    <section className="relative py-16 bg-slate-950">
+      <div className="pointer-events-none absolute inset-0 -z-10">
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950" />
+        <div className="absolute -top-24 right-1/4 h-64 w-64 rounded-full bg-orange-400/10 blur-3xl" />
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <h2 className="text-2xl font-bold text-slate-50">
+          How ScopeGrid works
+        </h2>
+
+        <div className="mt-8 grid gap-6 lg:grid-cols-4">
+          {/* Data sources */}
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/70 backdrop-blur p-6">
+            <div className="flex items-center gap-2 text-orange-400">
+              <Database className="h-5 w-5" />
+              <span className="text-sm font-semibold">Data in</span>
+            </div>
+            <h3 className="mt-2 text-lg font-semibold text-slate-100">
+              Your PSA + signals
+            </h3>
+            <p className="mt-2 text-slate-300 text-sm leading-relaxed">
+              We read agreements, additions and configurations from{" "}
+              <b>ConnectWise or Halo</b>. Optional integrations (BackupRadar,
+              CIPP, SmileBack) add health and posture context.
+            </p>
+            <ul className="mt-3 space-y-1 text-xs text-slate-400">
+              <li>• No agents to deploy</li>
+              <li>• Least-privilege credentials</li>
+              <li>• Server-side proxy; encrypted at rest</li>
+            </ul>
+          </div>
+
+          {/* Matching engine */}
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/70 backdrop-blur p-6">
+            <div className="flex items-center gap-2 text-orange-400">
+              <GitMerge className="h-5 w-5" />
+              <span className="text-sm font-semibold">Matching</span>
+            </div>
+            <h3 className="mt-2 text-lg font-semibold text-slate-100">
+              Catalog + simple rules
+            </h3>
+            <p className="mt-2 text-slate-300 text-sm leading-relaxed">
+              Products are matched from a curated catalog. You can add your own
+              terms per team or client for extra precision.
+            </p>
+            <ul className="mt-3 space-y-1 text-xs text-slate-400">
+              <li>• Deterministic and explainable</li>
+              <li>• Per-client overrides when needed</li>
+            </ul>
+          </div>
+
+          {/* Security / tenancy */}
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/70 backdrop-blur p-6">
+            <div className="flex items-center gap-2 text-orange-400">
+              <ShieldCheck className="h-5 w-5" />
+              <span className="text-sm font-semibold">Security & scope</span>
+            </div>
+            <h3 className="mt-2 text-lg font-semibold text-slate-100">
+              Tenant isolation
+            </h3>
+            <p className="mt-2 text-slate-300 text-sm leading-relaxed">
+              Views are locked to your team and the selected client. Credentials
+              are never sent to the browser.
+            </p>
+            <ul className="mt-3 space-y-1 text-xs text-slate-400">
+              <li>• Row-level scoping in data access</li>
+              <li>• Audit-friendly, minimal data retention</li>
+            </ul>
+          </div>
+
+          {/* Performance */}
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/70 backdrop-blur p-6">
+            <div className="flex items-center gap-2 text-orange-400">
+              <ServerCog className="h-5 w-5" />
+              <span className="text-sm font-semibold">Performance</span>
+            </div>
+            <h3 className="mt-2 text-lg font-semibold text-slate-100">
+              Fast by default
+            </h3>
+            <p className="mt-2 text-slate-300 text-sm leading-relaxed">
+              Smart batching and caching keep the UI responsive, even with lots
+              of clients and products.
+            </p>
+            <ul className="mt-3 space-y-1 text-xs text-slate-400">
+              <li>• Scales to large tenants</li>
+              <li>• Quick filtering and search</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/** Media query hook that avoids SSR mismatches */
+function useIsDesktop(minWidth = 640) {
+  const [isDesktop, setIsDesktop] = useState<boolean | null>(null);
+  useEffect(() => {
+    const mql = window.matchMedia(`(min-width:${minWidth}px)`);
+    const update = () => setIsDesktop(mql.matches);
+    update();
+    mql.addEventListener?.("change", update);
+    return () => mql.removeEventListener?.("change", update);
+  }, [minWidth]);
+  return isDesktop;
+}
+
+/** Renders a Sheet on mobile and a Dialog on desktop — but never both */
+function ResponsiveModal({
+  trigger,
+  title,
+  children,
+}: {
+  trigger: React.ReactNode;
+  title: string;
+  children: React.ReactNode;
+}) {
+  const isDesktop = useIsDesktop(); // null on first SSR render
+  const [open, setOpen] = useState(false);
+
+  // Until we know the viewport (first client paint), render just the trigger to avoid double-mount
+  if (isDesktop === null) {
+    return <span>{trigger}</span>;
+  }
+
+  if (isDesktop) {
+    return (
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>{trigger}</DialogTrigger>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{title}</DialogTitle>
+            <DialogDescription className="sr-only">{title}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 text-sm text-slate-700 dark:text-slate-300">
+            {children}
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild>{trigger}</SheetTrigger>
+      <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle>{title}</SheetTitle>
+        </SheetHeader>
+        <div className="mt-4 space-y-4 text-sm text-slate-700 dark:text-slate-300">
+          {children}
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+function TrustFooter() {
+  return (
+    <footer className="mt-16 border-t border-slate-200/70 bg-slate-950">
+      {/* top band */}
+      <div className="relative overflow-hidden">
+        <div className="pointer-events-none absolute inset-0 -z-10">
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent to-slate-50/70 dark:to-slate-900/40" />
+        </div>
+
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
+          {/* heading */}
+          <div className="mb-8">
+            <h2 className="text-xl md:text-2xl font-semibold text-slate-50">
+              Built for UK MSPs. Secure, compliant, and transparent.
+            </h2>
+            <p className="mt-2 text-sm text-slate-300">
+              ScopeGrid is a UK-based company. Data stays in the UK;
+              authentication is in the EU. We follow GDPR and least-privilege
+              best practices, including Microsoft GDAP.
+            </p>
+          </div>
+
+          {/* trust pillars */}
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+            {/* Data residency */}
+            <div className="rounded-2xl border bg-slate-900/60 backdrop-blur p-5 border-slate-700/60">
+              <div className="flex items-center gap-2 text-orange-400">
+                <Database className="h-5 w-5" />
+                <span className="text-sm font-semibold">UK Data Residency</span>
+              </div>
+              <p className="mt-2 text-sm text-slate-300">
+                Hosted on Vercel (UK region) with Postgres on Neon (London). All
+                data encrypted in transit & at rest.
+              </p>
+              <ul className="mt-3 space-y-1 text-xs text-slate-400">
+                <li>• UK data centres</li>
+                <li>• TLS everywhere, AES-256 at rest</li>
+              </ul>
+            </div>
+
+            {/* GDPR & DPA */}
+            <div className="rounded-2xl border bg-slate-900/60 backdrop-blur p-5 border-slate-700/60">
+              <div className="flex items-center gap-2 text-orange-400">
+                <ShieldCheck className="h-5 w-5" />
+                <span className="text-sm font-semibold">GDPR (UK/EU)</span>
+              </div>
+              <p className="mt-2 text-sm text-slate-300">
+                We operate as a processor with a clear DPA, minimal retention,
+                and rapid breach-notification commitments.
+              </p>
+              <div className="mt-3">
+                <ResponsiveModal
+                  title="Data Processing Addendum (DPA)"
+                  trigger={
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-slate-300 px-0 underline"
+                    >
+                      View DPA →
+                    </Button>
+                  }
+                >
+                  <p>
+                    This DPA forms part of your agreement with ScopeGrid Ltd
+                    (“Processor”) and applies to personal data we process on
+                    your behalf.
+                  </p>
+                  <ul className="list-disc ml-5 space-y-1">
+                    <li>
+                      <b>Roles & scope</b>: Processor acts on documented
+                      instructions.
+                    </li>
+                    <li>
+                      <b>Purpose</b>: deliver client product dashboards and
+                      access control.
+                    </li>
+                    <li>
+                      <b>Data</b>: user names/emails, tenant/company
+                      identifiers, limited PSA metadata; no special categories
+                      intended.
+                    </li>
+                    <li>
+                      <b>Security</b>: UK hosting, encryption in transit/at
+                      rest, tenant isolation, least-privilege.
+                    </li>
+                    <li>
+                      <b>Sub-processors</b>: Vercel (UK), Neon (London),
+                      Frontegg (EU).
+                    </li>
+                    <li>
+                      <b>Incidents</b>: notify without undue delay.
+                    </li>
+                    <li>
+                      <b>Deletion</b>: delete/return upon termination where
+                      legally permitted.
+                    </li>
+                  </ul>
+                  <p className="text-xs mt-3">
+                    Questions:{" "}
+                    <a
+                      className="underline"
+                      href="mailto:privacy@scopegrid.app"
+                    >
+                      privacy@scopegrid.app
+                    </a>
+                  </p>
+                </ResponsiveModal>
+              </div>
+            </div>
+
+            {/* GDAP / least privilege */}
+            <div className="rounded-2xl border bg-slate-900/60 backdrop-blur p-5 border-slate-700/60">
+              <div className="flex items-center gap-2 text-orange-400">
+                <LockKeyhole className="h-5 w-5" />
+                <span className="text-sm font-semibold">
+                  Least-Privilege & GDAP
+                </span>
+              </div>
+              <p className="mt-2 text-sm text-slate-300">
+                Microsoft Granular Delegated Admin Privileges (GDAP) ready.
+                Explicit consent, minimum permissions.
+              </p>
+              <ul className="mt-3 space-y-1 text-xs text-slate-400">
+                <li>• Zero-trust principles</li>
+                <li>• You remain in control</li>
+              </ul>
+            </div>
+
+            {/* Company & certifications */}
+            <div className="rounded-2xl border bg-slate-900/60 backdrop-blur p-5 border-slate-700/60">
+              <div className="flex items-center gap-2 text-orange-400">
+                <Building2 className="h-5 w-5" />
+                <span className="text-sm font-semibold">
+                  UK Company & Standards
+                </span>
+              </div>
+              <p className="mt-2 text-sm text-slate-300">
+                Founded by a former MSP technician turned software developer.
+                ISO&nbsp;27001 on our roadmap.
+              </p>
+              <div className="mt-3">
+                <ResponsiveModal
+                  title="About ScopeGrid"
+                  trigger={
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-slate-300 px-0 underline"
+                    >
+                      Our story →
+                    </Button>
+                  }
+                >
+                  <p>
+                    Our founder started in MSP support, moved through
+                    engineering and systems integration, led PSA↔product
+                    integrations & automated billing reconciliation, then built
+                    bespoke LOB apps. ScopeGrid turns those lessons into a
+                    simple, PSA-aware client dashboard.
+                  </p>
+                  <ul className="list-disc ml-5 space-y-1">
+                    <li>PSA-first discovery (ConnectWise & Halo), no agents</li>
+                    <li>Clean product cards with deep links</li>
+                    <li>UK data residency; transparent security</li>
+                    <li>Fast onboarding and hands-on support</li>
+                  </ul>
+                </ResponsiveModal>
+              </div>
+            </div>
+          </div>
+
+          {/* quick FAQ row */}
+          <div className="mt-10 grid gap-6 md:grid-cols-3">
+            <div>
+              <h4 className="text-sm font-semibold text-slate-100">
+                Where is my data stored?
+              </h4>
+              <p className="mt-2 text-sm text-slate-300">
+                UK regions (app + database). Authentication runs in the EU.
+                Other regions are planned.
+              </p>
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-slate-100">
+                Are you PSA-agnostic?
+              </h4>
+              <p className="mt-2 text-sm text-slate-300">
+                Yes—ConnectWise and Halo today. We detect products & services
+                with minimal setup.
+              </p>
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-slate-100">
+                Do you help with onboarding?
+              </h4>
+              <p className="mt-2 text-sm text-slate-300">
+                Absolutely. We’ll integrate your PSA, tune matchings, and get
+                you live quickly.
+              </p>
+            </div>
+          </div>
+
+          {/* bottom strip */}
+          <div className="mt-10 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3 text-xs text-slate-400">
+              <Globe2 className="h-4 w-4" />
+              <span>UK data residency</span>
+              <span className="mx-2">•</span>
+              <ResponsiveModal
+                title="Security Overview"
+                trigger={
+                  <button className="underline text-slate-300">Security</button>
+                }
+              >
+                <p>
+                  Least-privilege by default. Tenant isolation and server-side
+                  PSA proxies (no agents).
+                </p>
+                <ul className="list-disc ml-5 space-y-1">
+                  <li>
+                    Hosting: Vercel (UK); DB: Neon (London); Auth: Frontegg (EU)
+                  </li>
+                  <li>Encryption in transit & at rest; secrets protected</li>
+                  <li>GDAP-aligned permissions; minimal retention</li>
+                  <li>Incident response with rapid notification</li>
+                </ul>
+                <p className="text-xs mt-3">
+                  Report a concern:{" "}
+                  <a className="underline" href="mailto:security@scopegrid.app">
+                    security@scopegrid.app
+                  </a>
+                </p>
+              </ResponsiveModal>
+              <span className="mx-2">•</span>
+              <ResponsiveModal
+                title="Data Processing Addendum (DPA)"
+                trigger={
+                  <button className="underline text-slate-300">DPA</button>
+                }
+              >
+                <p>
+                  We’re a processor under UK/EU GDPR. Key points include roles &
+                  scope, sub-processors, and deletion.
+                </p>
+                <p className="text-xs mt-3">
+                  <a className="underline" href="mailto:privacy@scopegrid.app">
+                    privacy@scopegrid.app
+                  </a>
+                </p>
+              </ResponsiveModal>
+            </div>
+            <div className="flex items-center gap-3 text-sm">
+              <Link href="#" className="underline text-slate-300">
+                Privacy
+              </Link>
+              <span className="text-slate-400">/</span>
+              <a
+                href="mailto:jim@scopegrid.app"
+                className="inline-flex items-center gap-1 underline text-slate-300"
+              >
+                <Mail className="h-4 w-4" />
+                jim@scopegrid.app
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* copyright bar */}
+      <div className="border-t border-slate-800/70 bg-slate-900">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-5 flex flex-col sm:flex-row items-start sm:items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Image
+              src="/ScopeGridLogo.png"
+              alt="ScopeGrid"
+              width={120}
+              height={30}
+              className="h-6 w-auto dark:opacity-90"
+            />
+            <span className="text-xs text-slate-400">
+              © {new Date().getFullYear()} ScopeGrid Ltd. All rights reserved.
+            </span>
+          </div>
+          <div className="mt-3 sm:mt-0 text-xs text-slate-400">
+            Registered in England & Wales. UK-based team & support.
+          </div>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+/* ------------------------------- the page ------------------------------- */
 export default function HomePage() {
   return (
-    <main>
-      {/* Distinct hero layout (gradient + asymmetrical) */}
-      <section className="relative">
-        {/* ⟵ remove overflow-hidden here */}
-        {/* put the backgrounds in their own clipped layer behind content */}
-        <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-orange-50 via-white to-white" />
-          <div className="absolute -top-24 -right-24 size-[400px] rounded-full bg-orange-200/30 blur-3xl" />
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          Loading...
         </div>
-
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24">
-          <div className="grid lg:grid-cols-12 gap-10 items-center">
-            <div className="lg:col-span-5 overflow-visible">
-              {/* safety */}
-              <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-gray-900">
-                One pane for every client’s{' '}
-                <span className="text-orange-600">products & configs.</span>
-              </h1>
-              <p className="mt-4 text-lg text-gray-700">
-                ScopeGrid auto-builds a clean dashboard per customer using{" "}
-                <b>ConnectWise agreements & configurations</b>. See M365,
-                security, backup, RMM and more—with deep links to each portal.
-              </p>
-              <div className="mt-6 flex flex-wrap gap-3">
-                <Button asChild size="lg" className="rounded-full">
-                  <Link href="/sign-up">
-                    Get started
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </Link>
-                </Button>
-                <Button
-                  asChild
-                  size="lg"
-                  variant="outline"
-                  className="rounded-full"
-                >
-                  <Link href="/dashboard">Try the dashboard</Link>
-                </Button>
-              </div>
-              <p className="mt-3 text-xs text-gray-500">
-                Secure — tenant-scoped — built for MSPs
-              </p>
-            </div>
-
-            <div className="lg:col-span-7">
-              <MockDashboard />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Marquee logo wall (slow, pauses on hover / off-screen, respects reduced motion) */}
-      <LogoMarquee />
-
-      {/* Features (same as before) */}
-      <section className="py-16 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-            <FeatureCard
-              icon={<ScanSearch className="h-6 w-6" />}
-              title="ConnectWise-powered discovery"
-            >
-              We read agreement additions and configurations to auto-detect each
-              customer’s tools. No manual tagging required.
-            </FeatureCard>
-            <FeatureCard
-              icon={<PanelsTopLeft className="h-6 w-6" />}
-              title="Clean, card-based UI"
-            >
-              Product cards with vendor logos and deep links. Fast filtering and
-              search. Built for quick customer context.
-            </FeatureCard>
-            <FeatureCard
-              icon={<ShieldCheck className="h-6 w-6" />}
-              title="Tenant isolation"
-            >
-              Scoped by team, optional subdomains, and encrypted credentials.
-              Customer-locked views for AMs and techs.
-            </FeatureCard>
-            <FeatureCard
-              icon={<PlugZap className="h-6 w-6" />}
-              title="Snappy & cache-aware"
-            >
-              Our proxy and bundle endpoints minimize API calls and keep pages
-              fast—even on large tenants.
-            </FeatureCard>
-          </div>
-        </div>
-      </section>
-
-      {/* How it works (timeline) */}
-      <section className="py-16 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl font-bold text-gray-900">
-            How ScopeGrid works
-          </h2>
-          <div className="mt-8 grid gap-6 lg:grid-cols-3">
-            <div className="rounded-2xl border bg-white p-6">
-              <div className="text-sm font-semibold text-orange-600">
-                Step 1
-              </div>
-              <h3 className="mt-1 text-lg font-semibold">Create your team</h3>
-              <p className="mt-2 text-gray-600">
-                Sign up, invite teammates, and (optionally) claim a subdomain
-                for a clean tenant URL.
-              </p>
-            </div>
-            <div className="rounded-2xl border bg-white p-6">
-              <div className="text-sm font-semibold text-orange-600">
-                Step 2
-              </div>
-              <h3 className="mt-1 text-lg font-semibold">
-                Connect ConnectWise
-              </h3>
-              <p className="mt-2 text-gray-600">
-                Add site URL, company ID, and API keys. We encrypt at rest and
-                test the connection.
-              </p>
-            </div>
-            <div className="rounded-2xl border bg-white p-6">
-              <div className="text-sm font-semibold text-orange-600">
-                Step 3
-              </div>
-              <h3 className="mt-1 text-lg font-semibold">Pick a company</h3>
-              <p className="mt-2 text-gray-600">
-                Use the header picker. We auto-detect their stack and render
-                product cards with deep links to each portal.
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-10">
-            <Button asChild size="lg" className="rounded-full">
-              <Link href="/sign-up">
-                Get started
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Link>
-            </Button>
-          </div>
-        </div>
-      </section>
-    </main>
+      }
+    >
+      <main className="bg-white dark:bg-slate-950 overflow-x-hidden">
+        {/* Logo */}
+        {/* <LeftLogo /> */}
+        {/* Hero */}
+        <Hero />
+        {/* Logo marquee */}
+        <LogoMarquee />
+        {/* Features */}
+        {/* <Features /> */}
+        {/* Integrations (sell the value; no “not done yet”) */}
+        <Integrations />
+        {/* How it works */}
+        <HowItWorks />
+        {/* Pricing */}
+        <PricingSectionClient />
+        {/* <PricingTeaser /> */}
+        <TrustFooter />
+      </main>
+    </Suspense>
   );
 }

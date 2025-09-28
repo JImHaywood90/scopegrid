@@ -112,8 +112,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const checking = isProtected && isAuthenticated && (isLoading || (tenantSettings && !tenantSettings.onboardingCompleted));
 
   return (
+    <Suspense fallback={<div className="p-4 text-sm text-muted-foreground">Loading…</div>}>
     <section className="flex flex-col min-h-screen">
-      {(isDashboard || isSettings) && <Header showCenter={isDashboard} />}
+      <Header showCenter={isDashboard} />
 
       {checking ? (
         <div className="flex-1 flex items-center justify-center p-10 text-sm text-gray-500">Loading…</div>
@@ -123,5 +124,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         children
       )}
     </section>
+    </Suspense>
   );
 }

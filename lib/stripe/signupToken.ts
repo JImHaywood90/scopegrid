@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 const SECRET = process.env.SIGNUP_TOKEN_SECRET!;
 if (!SECRET) throw new Error('SIGNUP_TOKEN_SECRET missing');
 
-export type SignupPayload = { email: string; planId: string; iat: number };
+export type SignupPayload = { planId: string; iat: number };
 
 export function signSignupPayload(payload: SignupPayload) {
   const b64 = Buffer.from(JSON.stringify(payload)).toString('base64url');

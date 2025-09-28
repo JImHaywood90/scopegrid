@@ -153,14 +153,27 @@ export default function SettingsPage() {
     <section className="flex-1 p-4 lg:p-8">
       <h1 className="text-lg lg:text-2xl font-medium mb-6">Integrations</h1>
 
-
       <Suspense fallback={<SubscriptionSkeleton />}>
         <ManageSubscription />
       </Suspense>
-
-      <MyProfile />
-
-      <TeamManagement />
+      <Suspense
+        fallback={
+          <div className="min-h-screen flex items-center justify-center">
+            Loading profile...
+          </div>
+        }
+      >
+        <MyProfile />
+      </Suspense>
+      <Suspense
+        fallback={
+          <div className="min-h-screen flex items-center justify-center">
+            Loading teams...
+          </div>
+        }
+      >
+        <TeamManagement />
+      </Suspense>
     </section>
   );
 }

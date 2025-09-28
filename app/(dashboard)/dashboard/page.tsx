@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { Suspense, useEffect, useMemo } from "react";
 import useSWR from "swr";
 import { useSearchParams } from "next/navigation";
 import CompanyPicker from "@/components/ConnectWise/company-picker";
@@ -79,45 +79,53 @@ export default function DashboardProducts() {
   const showSkeletons = isLoading || isValidating;
 
   return (
-    <section className="flex-1 p-4 lg:p-8">
-      {/* Keep a compact picker on mobile; main controls live in the header */}
-      <div className="mb-4 md:hidden">
-        <CompanyPicker onChanged={() => mutate()} />
-      </div>
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          Loading...
+        </div>
+      }
+    >
+      <section className="flex-1 p-4 lg:p-8">
+        {/* Keep a compact picker on mobile; main controls live in the header */}
+        <div className="mb-4 md:hidden">
+          <CompanyPicker onChanged={() => mutate()} />
+        </div>
 
-      {error ? (
-        error.status === 400 ? (
+        {error ? (
+          error.status === 400 ? (
+            <div className="text-sm text-muted-foreground">
+              Pick a company to view products.
+            </div>
+          ) : (
+            <div className="text-red-600">Failed to load products.</div>
+          )
+        ) : showSkeletons ? (
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            {Array.from({ length: 12 }).map((_, i) => (
+              <ProductCardSkeleton key={i} />
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="text-sm text-muted-foreground">
-            Pick a company to view products.
+            No products match your filters.
           </div>
         ) : (
-          <div className="text-red-600">Failed to load products.</div>
-        )
-      ) : showSkeletons ? (
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-          {Array.from({ length: 12 }).map((_, i) => (
-            <ProductCardSkeleton key={i} />
-          ))}
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="text-sm text-muted-foreground">
-          No products match your filters.
-        </div>
-      ) : (
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-          {filtered.map((p) => (
-            <ProductCard
-              key={p.id}
-              id={p.id}
-              name={p.name}
-              logoLightPath={p.logoLightPath}
-              logoDarkPath={p.logoDarkPath || undefined}
-              description={p.description || undefined}
-              links={p.links || undefined}
-            />
-          ))}
-        </div>
-      )}
-    </section>
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            {filtered.map((p) => (
+              <ProductCard
+                key={p.id}
+                id={p.id}
+                name={p.name}
+                logoLightPath={p.logoLightPath}
+                logoDarkPath={p.logoDarkPath || undefined}
+                description={p.description || undefined}
+                links={p.links || undefined}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+    </Suspense>
   );
 }
