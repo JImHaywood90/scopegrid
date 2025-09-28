@@ -5,6 +5,7 @@ import { Manrope } from "next/font/google";
 import { FronteggAppProvider } from "@frontegg/nextjs/app";
 import { ThemeProvider } from "next-themes";
 import SWRProvider from "@/components/providers/SWRProvider";
+import Script from "next/script";
 
 export const metadata: Metadata = {
   title: "ScopeGrid",
@@ -14,7 +15,11 @@ export const metadata: Metadata = {
 export const viewport: Viewport = { maximumScale: 1 };
 const manrope = Manrope({ subsets: ["latin"] });
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <FronteggAppProvider authOptions={{ keepSessionAlive: true }}>
       <html
@@ -23,10 +28,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         className={`bg-white dark:bg-gray-950 text-black dark:text-white ${manrope.className}`}
       >
         <body className="min-h-[100dvh] bg-gray-50 dark:bg-gray-950">
-          <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-            <SWRProvider>
-              {children}
-            </SWRProvider>
+          <Script
+            src="https://js.stripe.com/v3/pricing-table.js"
+            strategy="afterInteractive"
+            async
+          />
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <SWRProvider>{children}</SWRProvider>
           </ThemeProvider>
         </body>
       </html>

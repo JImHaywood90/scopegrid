@@ -2,32 +2,31 @@
 
 import * as React from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { mutate as globalMutate } from 'swr';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList
+} from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Check, ChevronsUpDown, Building2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { mutate as globalMutate } from 'swr';
 
-type CwCompany = {
-  id: number;
-  name: string;
-  identifier: string;
-  status?: { name?: string };
+type UnifiedCompany = {
+  identifier: string; // PSA-agnostic identifier (CW: identifier; Halo: ref/id as string)
+  name: string;       // Display name
+  subtitle?: string;  // Optional extra line
 };
 
-function buildConditions(q: string) {
-  const safe = q.replace(/"/g, '\\"');
-  return `(name like "%${safe}%" or identifier like "%${safe}%") and status/name in ('Active','Special Info') and deletedFlag=false`;
-}
-function buildChildConditions() {
-  return `types/name contains "customer" or types/name contains "client"`;
-}
-
 type Props = {
-  onChanged?: (c: CwCompany) => void;
+  onChanged?: (c: { identifier: string; name: string }) => void;
   className?: string;
-  revalidateKeys?: string[]; // SWR keys to refresh on change
+  /** SWR keys to revalidate after a selection */
+  revalidateKeys?: string[];
 };
 
 export default function CompanyPicker({
@@ -35,17 +34,16 @@ export default function CompanyPicker({
   className,
   revalidateKeys = ['/api/dashboard/products'],
 }: Props) {
+  const sp = useSearchParams();
+  const urlIdentifier =
+    sp?.get('CompanyIdentifier') ?? sp?.get('companyIdentifier') ?? null;
+
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState('');
   const [loading, setLoading] = React.useState(false);
-  const [options, setOptions] = React.useState<CwCompany[]>([]);
-  const [value, setValue] = React.useState<{ identifier: string; name: string } | null>(null);
+  const [options, setOptions] = React.useState<UnifiedCompany[]>([]);
+  const [value, setValue] = React.useState<UnifiedCompany | null>(null);
 
-  const sp = useSearchParams();
-  const urlIdentifier =
-    sp.get('CompanyIdentifier') ?? sp.get('companyIdentifier') ?? null;
-
-  // Helper: persist cookie + notify + revalidate
   const persistAndNotify = React.useCallback(
     async (identifier: string, name: string) => {
       await fetch('/api/dashboard/company-selection', {
@@ -53,51 +51,55 @@ export default function CompanyPicker({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ identifier, name }),
       });
-      window.dispatchEvent(new CustomEvent('sg:company-changed', { detail: { identifier } }));
+      window.dispatchEvent(
+        new CustomEvent('sg:company-changed', { detail: { identifier } })
+      );
       await Promise.all(revalidateKeys.map((k) => globalMutate(k)));
     },
     [revalidateKeys]
   );
 
-  // 1) Initialize from URL param if present; otherwise from cookie
+  // 1) Initialize from URL param first; otherwise from cookie
   React.useEffect(() => {
     (async () => {
-      // If URL has an identifier and it's different, use it
+      // URL param takes precedence
       if (urlIdentifier && urlIdentifier !== value?.identifier) {
-        let displayName = urlIdentifier;
         try {
-          // Best-effort look-up to show a friendly name
-          const res = await fetch(
-            `/api/connectwise/company/companies?conditions=${encodeURIComponent(
-              `identifier="${urlIdentifier}"`
-            )}&pageSize=1`,
+          const r = await fetch(
+            `/api/psa/client/resolve?identifier=${encodeURIComponent(urlIdentifier)}`,
             { cache: 'no-store' }
           );
-          if (res.ok) {
-            const [row] = (await res.json()) as CwCompany[];
-            if (row?.name) displayName = row.name;
-          }
+          const j = await r.json();
+          const uni = {
+            identifier: urlIdentifier,
+            name: j?.name || urlIdentifier,
+          };
+          setValue(uni);
+          await persistAndNotify(uni.identifier, uni.name);
+          return;
         } catch {
-          /* ignore */
+          const uni = { identifier: urlIdentifier, name: urlIdentifier };
+          setValue(uni);
+          await persistAndNotify(uni.identifier, uni.name);
+          return;
         }
-        setValue({ identifier: urlIdentifier, name: displayName });
-        await persistAndNotify(urlIdentifier, displayName);
-        return;
       }
 
-      // Else load from cookie (if not already set)
+      // Otherwise load from cookie (if not already set)
       if (!value) {
         const r = await fetch('/api/dashboard/company-selection', { cache: 'no-store' });
         if (r.ok) {
           const { identifier, name } = await r.json();
-          if (identifier) setValue({ identifier, name: name || identifier });
+          if (identifier) {
+            setValue({ identifier, name: name || identifier });
+          }
         }
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [urlIdentifier]); // react to URL changes
+  }, [urlIdentifier]);
 
-  // 2) Debounced search when popover is open
+  // 2) Debounced search via unified PSA endpoint
   React.useEffect(() => {
     if (!open) return;
     const q = query.trim();
@@ -107,32 +109,39 @@ export default function CompanyPicker({
     }
     setLoading(true);
     const ctl = new AbortController();
+
     const t = setTimeout(async () => {
       try {
-        const url =
-          `/api/connectwise/company/companies` +
-          `?conditions=${encodeURIComponent(buildConditions(q))}` +
-          `&childConditions=${encodeURIComponent(buildChildConditions())}` +
-          `&pageSize=25&orderBy=name%20asc`;
-        const res = await fetch(url, { signal: ctl.signal });
+        const res = await fetch(
+          `/api/psa/clients?q=${encodeURIComponent(q)}&pageSize=25`,
+          { signal: ctl.signal }
+        );
         if (!res.ok) throw new Error(await res.text());
-        const companies = (await res.json()) as CwCompany[];
-        setOptions(companies);
+        const j = await res.json();
+        const items: UnifiedCompany[] = (Array.isArray(j?.items) ? j.items : []).map(
+          (x: any) => ({
+            identifier: String(x.identifier),
+            name: String(x.name),
+            subtitle: x.statusName ? `Status: ${x.statusName}` : undefined,
+          })
+        );
+        setOptions(items);
       } catch {
         setOptions([]);
       } finally {
         setLoading(false);
       }
     }, 250);
+
     return () => {
       clearTimeout(t);
       ctl.abort();
     };
   }, [open, query]);
 
-  // 3) Handle manual pick
-  async function pick(c: CwCompany) {
-    setValue({ identifier: c.identifier, name: c.name });
+  // 3) Pick handler
+  async function pick(c: UnifiedCompany) {
+    setValue(c);
     setOpen(false);
     await persistAndNotify(c.identifier, c.name);
     onChanged?.(c);
@@ -149,7 +158,7 @@ export default function CompanyPicker({
         >
           <span className="inline-flex items-center gap-2 truncate">
             <Building2 className="h-4 w-4 opacity-70" />
-            {value ? `${value.name} (${value.identifier})` : 'Pick a company…'}
+            {value ? `${value.name} (${value.identifier})` : 'Pick a customer…'}
           </span>
           <ChevronsUpDown className="h-4 w-4 opacity-70" />
         </Button>
@@ -157,18 +166,18 @@ export default function CompanyPicker({
       <PopoverContent className="w-[360px] p-0" align="end">
         <Command shouldFilter={false}>
           <CommandInput
-            placeholder={loading ? 'Searching…' : 'Search companies…'}
+            placeholder={loading ? 'Searching…' : 'Search customers…'}
             value={query}
             onValueChange={setQuery}
           />
           <CommandList>
             <CommandEmpty>
-              {query.trim().length < 2 ? 'Start typing…' : 'No companies found'}
+              {query.trim().length < 2 ? 'Start typing…' : 'No results'}
             </CommandEmpty>
             <CommandGroup>
               {options.map((c) => (
                 <CommandItem
-                  key={c.id}
+                  key={c.identifier}
                   value={c.identifier}
                   onSelect={() => pick(c)}
                   className="flex items-center justify-between"
@@ -176,7 +185,8 @@ export default function CompanyPicker({
                   <div className="min-w-0">
                     <div className="font-medium truncate">{c.name}</div>
                     <div className="text-xs text-muted-foreground truncate">
-                      {c.identifier} {c.status?.name ? `• ${c.status.name}` : ''}
+                      {c.identifier}
+                      {c.subtitle ? ` • ${c.subtitle}` : ''}
                     </div>
                   </div>
                   <Check

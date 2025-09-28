@@ -1,16 +1,27 @@
-// app/api/dashboard/products/route.ts
-import { NextRequest, NextResponse } from "next/server";
-import { and, eq, isNull, or } from "drizzle-orm";
-import { db } from "@/lib/db/drizzle";
-import { productCatalog, productMatchOverrides } from "@/lib/db/schema.v2";
-import { getAppSession } from "@frontegg/nextjs/app"; 
+import { NextRequest, NextResponse } from 'next/server';
+import { and, eq, isNull, or } from 'drizzle-orm';
+import { db } from '@/lib/db/drizzle';
+import { productCatalog, productMatchOverrides } from '@/lib/db/schema.v2';
+import { getAppSession } from '@frontegg/nextjs/app';
 
-export const runtime = "nodejs";
+export const runtime = 'nodejs';
 
-type BundleRequest = {
+/* ---------------- shared helpers ---------------- */
+const CHUNK = 50;
+const lc = (s: unknown) => (typeof s === 'string' ? s.toLowerCase() : '');
+const pushIf = (arr: string[], val?: unknown) => {
+  if (typeof val === 'string' && val.trim()) arr.push(lc(val));
+};
+
+function unique<T>(arr: T[]): T[] {
+  return Array.from(new Set(arr));
+}
+
+/* ---------------- ConnectWise types ---------------- */
+type CwBundleRequest = {
   Version?: string;
   SequenceNumber: number;
-  ResourceType: "agreement" | "configuration" | "addition";
+  ResourceType: 'agreement' | 'configuration' | 'addition';
   ApiRequest: {
     id?: number;
     parentId?: number;
@@ -26,8 +37,7 @@ type BundleRequest = {
     miscProperties?: Record<string, unknown>;
   };
 };
-
-type BundleResult = {
+type CwBundleResult = {
   sequenceNumber: number;
   resourceType?: string;
   entities?: any[];
@@ -36,51 +46,92 @@ type BundleResult = {
   statusCode: number;
   error?: { code?: string; message?: string } | null;
 };
+type CwBundleResponse = { results: CwBundleResult[] };
 
-type BundleResponse = { results: BundleResult[] };
+/* ---------------- Halo field extraction (best-effort) ---------------- */
+/** Collect meaningful text fields from an arbitrary Halo entity */
+function collectHaloTexts(entity: any, out: string[]) {
+  if (!entity || typeof entity !== 'object') return;
 
-const CHUNK = 50;
-const lc = (s: unknown) => (typeof s === "string" ? s.toLowerCase() : "");
+  // Common name-ish fields
+  pushIf(out, entity.name);
+  pushIf(out, entity.display_name);
+  pushIf(out, entity.client_name);
+  pushIf(out, entity.site_name);
+  pushIf(out, entity.item_name);
+  pushIf(out, entity.product_name);
+  pushIf(out, entity.contract_name);
+  pushIf(out, entity.agreement_name);
+  pushIf(out, entity.service_name);
+  pushIf(out, entity.asset_name);
+  pushIf(out, entity.configuration_name);
 
+  // Identifiers / references / codes
+  pushIf(out, entity.reference);
+  pushIf(out, entity.ref);
+  pushIf(out, entity.id);
+  pushIf(out, entity.product_code);
+  pushIf(out, entity.item_code);
+  pushIf(out, entity.sku);
+  pushIf(out, entity.manufacturer);
+  pushIf(out, entity.manufacturer_part_number);
+  pushIf(out, entity.mpn);
+  pushIf(out, entity.vendor_sku);
+  pushIf(out, entity.model);
+  pushIf(out, entity.type);
+  pushIf(out, entity.category);
+  pushIf(out, entity.subcategory);
+
+  // Descriptions
+  pushIf(out, entity.description);
+  pushIf(out, entity.long_description);
+  pushIf(out, entity.invoice_description);
+
+  // Nested commonly-used sub-objects (very lenient)
+  for (const key of ['item', 'product', 'service', 'asset', 'configuration', 'contract']) {
+    if (entity[key] && typeof entity[key] === 'object') collectHaloTexts(entity[key], out);
+  }
+}
+
+/** Pull a list from Halo API response that might be an array or object with a list property */
+function haloList(payload: any, ...listKeys: string[]) {
+  if (Array.isArray(payload)) return payload;
+  for (const k of listKeys) {
+    if (Array.isArray(payload?.[k])) return payload[k];
+  }
+  // Some Halo endpoints wrap with { record_count, <plural>: [...] }
+  const firstArray = Object.values(payload || {}).find(Array.isArray);
+  return Array.isArray(firstArray) ? firstArray : [];
+}
+
+/* ---------------- main handler ---------------- */
 export async function GET(req: NextRequest) {
   try {
-    // 0) Auth: require Frontegg session
+    // Frontegg auth
     const session = await getAppSession();
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    // Frontegg session contains user & tenant. We need tenant for overrides.
-    // Common shapes: session.user, session.tenant, and/or session.tenantId.
     const feTenantId =
-      // prefer explicit tenant id if present
       (session as any)?.tenantId ||
       (session as any)?.user?.tenantId ||
       (session as any)?.tenant?.id ||
       null;
 
-    // 1) Resolve company identifier (query param wins, else cookie)
+    // Company identifier (query or cookie)
     const sp = req.nextUrl.searchParams;
-    const fromQuery =
-      sp.get("companyIdentifier") || sp.get("CompanyIdentifier") || "";
+    const fromQuery = sp.get('companyIdentifier') || sp.get('CompanyIdentifier') || '';
     const fromCookie =
-      req.cookies.get("sg.companyIdentifier")?.value ||
-      (req.headers
-        .get("cookie")
-        ?.match(/(?:^|;\s*)sg\.companyIdentifier=([^;]+)/)?.[1] ?? "");
+      req.cookies.get('sg.companyIdentifier')?.value ||
+      (req.headers.get('cookie')?.match(/(?:^|;\s*)sg\.companyIdentifier=([^;]+)/)?.[1] ?? '');
     const companyIdentifier = fromQuery || fromCookie;
-
     if (!companyIdentifier) {
       return NextResponse.json(
-        {
-          error:
-            "No company selected. Use the picker, or pass ?companyIdentifier=ACME.",
-        },
+        { error: 'No company selected. Use the picker, or pass ?companyIdentifier=ACME.' },
         { status: 400 }
       );
     }
 
-    // 2) Catalog (read-only; keep your existing table/data)
+    // Catalog
     const catalog = await db
       .select({
         id: productCatalog.id,
@@ -96,9 +147,8 @@ export async function GET(req: NextRequest) {
       })
       .from(productCatalog);
 
-    // 3) Tenant-scoped overrides (Frontegg: feTenantId)
+    // Tenant overrides
     const overridesBySlug = new Map<string, string[]>();
-
     if (feTenantId) {
       const rows = await db
         .select({
@@ -112,8 +162,7 @@ export async function GET(req: NextRequest) {
             eq(productMatchOverrides.feTenantId, feTenantId),
             or(
               isNull(productMatchOverrides.companyIdentifier),
-              // drizzle-orm typing sometimes needs a cast for empty string
-              eq(productMatchOverrides.companyIdentifier, "" as any),
+              eq(productMatchOverrides.companyIdentifier as any, ''),
               eq(productMatchOverrides.companyIdentifier, companyIdentifier)
             )
           )
@@ -122,148 +171,226 @@ export async function GET(req: NextRequest) {
       for (const r of rows) {
         const key = r.productSlug;
         const curr = overridesBySlug.get(key) ?? [];
-        const extra = (r.terms ?? [])
-          .map((t) => t.toLowerCase())
-          .filter(Boolean);
-        overridesBySlug.set(key, Array.from(new Set([...curr, ...extra])));
+        const extra = (r.terms ?? []).map((t) => t.toLowerCase()).filter(Boolean);
+        overridesBySlug.set(key, unique([...curr, ...extra]));
       }
     }
 
-    // 4) Pull ConnectWise data via your bundled proxy route
-    const firstBundle: BundleRequest[] = [
-      {
-        Version: "2020.1",
-        SequenceNumber: 1,
-        ResourceType: "agreement",
-        ApiRequest: {
-          filters: {
-            conditions: `company/identifier="${companyIdentifier}" and agreementStatus="Active" and cancelledFlag=false`,
-          },
-          page: { page: 1, pageSize: 1000 },
-        },
-      },
-      {
-        Version: "2020.1",
-        SequenceNumber: 2,
-        ResourceType: "configuration",
-        ApiRequest: {
-          filters: {
-            conditions: `company/identifier="${companyIdentifier}" and status/name="Active"`,
-          },
-          page: { page: 1, pageSize: 1000 },
-        },
-      },
-    ];
-
+    // Which PSA?
     const origin = req.nextUrl.origin;
-    const cookiesHeader = req.headers.get("cookie") || "";
-
-    const firstRes = await fetch(`${origin}/api/connectwise/system/bundles`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        ...(cookiesHeader ? { cookie: cookiesHeader } : {}),
-      },
-      body: JSON.stringify({ requests: firstBundle }),
-      cache: "no-store",
+    const cookie = req.headers.get('cookie') || '';
+    const psaInfoRes = await fetch(`${origin}/api/psa/info`, {
+      headers: { cookie },
+      cache: 'no-store',
     });
-
-    if (!firstRes.ok) {
-      const txt = await firstRes.text().catch(() => "");
-      return new NextResponse(
-        `Bundle(agreements+configs) failed ${firstRes.status}\n${txt}`,
-        { status: firstRes.status }
-      );
+    if (!psaInfoRes.ok) {
+      const txt = await psaInfoRes.text().catch(() => '');
+      return NextResponse.json({ error: `psa/info failed: ${txt}` }, { status: 500 });
     }
+    const psaInfo = (await psaInfoRes.json()) as { kind: 'connectwise' | 'halo' };
 
-    const firstJson = (await firstRes.json()) as BundleResponse;
-    const agreements = (firstJson.results.find((r) => r.sequenceNumber === 1)
-      ?.entities ?? []) as Array<{ id: number }>;
-    const configurations = (firstJson.results.find(
-      (r) => r.sequenceNumber === 2
-    )?.entities ?? []) as any[];
+    /* ---------------- build haystack per PSA ---------------- */
+    const texts: string[] = [];
 
-    const agreementIds = agreements
-      .map((a) => a?.id)
-      .filter((n): n is number => Number.isFinite(n));
-
-    // 5) Additions per agreement (chunked)
-    const additions: any[] = [];
-    if (agreementIds.length) {
-      const addReqs: BundleRequest[] = agreementIds.map((id) => ({
-        Version: "2020.1",
-        SequenceNumber: id,
-        ResourceType: "addition",
-        ApiRequest: {
-          parentId: id,
-          filters: { conditions: "cancelledDate=null" },
-          page: { page: 1, pageSize: 1000 },
-        },
-      }));
-
-      for (let i = 0; i < addReqs.length; i += CHUNK) {
-        const chunk = addReqs.slice(i, i + CHUNK);
-        const r = await fetch(`${origin}/api/connectwise/system/bundles`, {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-            ...(cookiesHeader ? { cookie: cookiesHeader } : {}),
+    if (psaInfo.kind === 'connectwise') {
+      // Agreements + Configurations
+      const firstBundle: CwBundleRequest[] = [
+        {
+          Version: '2020.1',
+          SequenceNumber: 1,
+          ResourceType: 'agreement',
+          ApiRequest: {
+            filters: {
+              conditions: `company/identifier="${companyIdentifier}" and agreementStatus="Active" and cancelledFlag=false`,
+            },
+            page: { page: 1, pageSize: 1000 },
           },
-          body: JSON.stringify({ requests: chunk }),
-          cache: "no-store",
+        },
+        {
+          Version: '2020.1',
+          SequenceNumber: 2,
+          ResourceType: 'configuration',
+          ApiRequest: {
+            filters: {
+              conditions: `company/identifier="${companyIdentifier}" and status/name="Active"`,
+            },
+            page: { page: 1, pageSize: 1000 },
+          },
+        },
+      ];
+
+      const firstRes = await fetch(`${origin}/api/connectwise/system/bundles`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', ...(cookie ? { cookie } : {}) },
+        body: JSON.stringify({ requests: firstBundle }),
+        cache: 'no-store',
+      });
+      if (!firstRes.ok) {
+        const txt = await firstRes.text().catch(() => '');
+        return new NextResponse(`Bundle(agreements+configs) failed ${firstRes.status}\n${txt}`, {
+          status: firstRes.status,
         });
-        if (!r.ok) {
-          const txt = await r.text().catch(() => "");
-          return new NextResponse(
-            `Bundle(additions) failed ${r.status}\n${txt}`,
-            { status: r.status }
-          );
-        }
-        const j = (await r.json()) as BundleResponse;
-        for (const res of j.results || []) {
-          if (!res.success || res.statusCode >= 400) continue;
-          const arr = Array.isArray(res.entities)
-            ? res.entities
-            : res.data
-            ? [res.data]
-            : [];
-          additions.push(...arr);
+      }
+      const firstJson = (await firstRes.json()) as CwBundleResponse;
+      const agreements = (firstJson.results.find((r) => r.sequenceNumber === 1)?.entities ??
+        []) as Array<{ id: number }>;
+      const configurations = (firstJson.results.find((r) => r.sequenceNumber === 2)?.entities ??
+        []) as any[];
+
+      // Extract texts from configurations
+      for (const cfg of configurations) {
+        pushIf(texts, cfg?.name);
+        pushIf(texts, cfg?.type?.name);
+      }
+
+      // Additions per agreement
+      const agreementIds = agreements
+        .map((a) => a?.id)
+        .filter((n): n is number => Number.isFinite(n));
+
+      if (agreementIds.length) {
+        const addReqs: CwBundleRequest[] = agreementIds.map((id) => ({
+          Version: '2020.1',
+          SequenceNumber: id,
+          ResourceType: 'addition',
+          ApiRequest: {
+            parentId: id,
+            filters: { conditions: 'cancelledDate=null' },
+            page: { page: 1, pageSize: 1000 },
+          },
+        }));
+
+        for (let i = 0; i < addReqs.length; i += CHUNK) {
+          const chunk = addReqs.slice(i, i + CHUNK);
+          const r = await fetch(`${origin}/api/connectwise/system/bundles`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', ...(cookie ? { cookie } : {}) },
+            body: JSON.stringify({ requests: chunk }),
+            cache: 'no-store',
+          });
+          if (!r.ok) {
+            const txt = await r.text().catch(() => '');
+            return new NextResponse(`Bundle(additions) failed ${r.status}\n${txt}`, {
+              status: r.status,
+            });
+          }
+          const j = (await r.json()) as CwBundleResponse;
+          for (const res of j.results || []) {
+            if (!res.success || res.statusCode >= 400) continue;
+            const arr = Array.isArray(res.entities) ? res.entities : res.data ? [res.data] : [];
+            for (const add of arr) {
+              pushIf(texts, add?.product?.identifier ?? add?.catalogItem?.identifier);
+              pushIf(texts, add?.description);
+              pushIf(texts, add?.invoiceDescription);
+              pushIf(texts, add?.manufacturerPartNumber);
+              pushIf(texts, add?.vendorSku);
+              pushIf(texts, add?.integrationXRef);
+            }
+          }
         }
       }
+} else {
+      // HALO (PSA): strictly client-scoped pulls
+      const clientIdRaw = companyIdentifier; // in your picker we store Halo "id" as string
+      const clientIdNum = Number(clientIdRaw);
+      const clientId = Number.isFinite(clientIdNum) ? clientIdNum : clientIdRaw;
+
+      async function pull(url: string) {
+        try {
+          const r = await fetch(url, { headers: { cookie }, cache: 'no-store' });
+          if (!r.ok) return null;
+          return await r.json();
+        } catch {
+          return null;
+        }
+      }
+
+      // Utility: keep only rows that clearly belong to this client
+      function filterToClient(rows: any[]): any[] {
+        return (rows || []).filter((row) => {
+          const cid =
+            row?.client_id ??
+            row?.clientId ??
+            row?.clientID ??
+            row?.customer_id ??
+            row?.customerId ??
+            row?.organisation_id ??
+            row?.organization_id ??
+            row?.org_id ??
+            row?.site_client_id ?? // sometimes nested
+            row?.client?.id ??
+            row?.customer?.id ??
+            row?.organisation?.id;
+
+          // accept both numeric and string ids
+          if (cid == null) return false;
+          return String(cid) === String(clientId);
+        });
+      }
+
+      function listFrom(payload: any, ...keys: string[]) {
+        if (Array.isArray(payload)) return payload;
+        for (const k of keys) {
+          if (Array.isArray(payload?.[k])) return payload[k];
+        }
+        const firstArray = Object.values(payload || {}).find(Array.isArray);
+        return Array.isArray(firstArray) ? firstArray : [];
+      }
+
+      // 1) Recurring invoice contracts (agreements-like)
+      {
+        const data = await pull(
+          `${origin}/api/halo/RecurringInvoiceContract?client_id=${encodeURIComponent(
+            String(clientId)
+          )}&pageSize=1000`
+        );
+        const rows = filterToClient(listFrom(data, 'contracts', 'recurringinvoicecontracts'));
+        for (const row of rows) collectHaloTexts(row, texts);
+      }
+
+      // 2) Contracts (general)
+      {
+        const data = await pull(
+          `${origin}/api/halo/Contract?client_id=${encodeURIComponent(String(clientId))}&pageSize=1000`
+        );
+        const rows = filterToClient(listFrom(data, 'contracts'));
+        for (const row of rows) collectHaloTexts(row, texts);
+      }
+
+      // 3) Assets / configurations
+      {
+        const data = await pull(
+          `${origin}/api/halo/Asset?client_id=${encodeURIComponent(String(clientId))}&pageSize=1000`
+        );
+        const rows = filterToClient(listFrom(data, 'assets'));
+        for (const row of rows) collectHaloTexts(row, texts);
+      }
+
+      // ⚠️ Intentionally NOT fetching global Items/Subscriptions here.
+      // If you confirm a client-scoped endpoint (e.g. /Client/{id}/Items), add:
+      // {
+      //   const data = await pull(`${origin}/api/halo/Client/${encodeURIComponent(String(clientId))}/Items?pageSize=1000`);
+      //   const rows = filterToClient(listFrom(data, 'items', 'products', 'services'));
+      //   for (const row of rows) collectHaloTexts(row, texts);
+      // }
     }
 
-    // 6) Build haystack
-    const texts: string[] = [];
-    for (const add of additions) {
-      const pid = add?.product?.identifier ?? add?.catalogItem?.identifier;
-      if (pid) texts.push(lc(pid));
-      if (add?.description) texts.push(lc(add.description));
-      if (add?.invoiceDescription) texts.push(lc(add.invoiceDescription));
-      if (add?.manufacturerPartNumber) texts.push(lc(add.manufacturerPartNumber));
-      if (add?.vendorSku) texts.push(lc(add.vendorSku));
-      if (add?.integrationXRef) texts.push(lc(add.integrationXRef));
-    }
-    for (const cfg of configurations) {
-      if (cfg?.name) texts.push(lc(cfg.name));
-      if (cfg?.type?.name) texts.push(lc(cfg.type.name));
-    }
-    const haystack = texts.join("\n");
+    // Build haystack string
+    const haystack = texts.join('\n');
 
-    // 7) Match (catalog + tenant overrides)
+    // Match against catalog + overrides
     const matchedSlugs = new Set<string>();
     let overridesConsidered = 0;
 
     for (const p of catalog) {
       const global = (p.matchTerms?.length ? p.matchTerms : [p.name, p.slug]).map((s) =>
-        s.toLowerCase()
+        String(s || '').toLowerCase()
       );
       const extra = overridesBySlug.get(p.slug) ?? [];
       if (extra.length) overridesConsidered += extra.length;
 
-      const terms = Array.from(new Set([...global, ...extra]));
-      if (terms.some((t) => t && t.length >= 2 && haystack.includes(t))) {
-        matchedSlugs.add(p.slug);
-      }
+      const terms = unique([...global, ...extra]).filter((t) => t && t.length >= 2);
+      if (terms.some((t) => haystack.includes(t))) matchedSlugs.add(p.slug);
     }
 
     const matched = catalog.filter((p) => matchedSlugs.has(p.slug));
@@ -271,20 +398,18 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       matched,
       counts: {
-        agreements: agreementIds.length,
-        additions: additions.length,
-        configurations: configurations.length,
         products: matched.length,
         overrideTermsConsidered: overridesConsidered,
-        productsWithOverrides: Array.from(overridesBySlug.entries()).filter(
-          ([, v]) => v.length
-        ).length,
+        productsWithOverrides: Array.from(overridesBySlug.entries()).filter(([, v]) => v.length)
+          .length,
+        haystackTerms: texts.length,
       },
       companyIdentifier,
       feTenantId: feTenantId ?? undefined,
+      psa: psaInfo.kind,
     });
   } catch (e: any) {
-    console.error("GET /api/dashboard/products (bundled) failed:", e);
-    return new NextResponse(e?.message || "Internal error", { status: 500 });
+    console.error('GET /api/dashboard/products failed:', e);
+    return new NextResponse(e?.message || 'Internal error', { status: 500 });
   }
 }

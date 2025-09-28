@@ -121,3 +121,21 @@ export const productMatchExclusions = pgTable('product_match_exclusions', {
   uniqExcl: uniqueIndex('uniq_exclusion_tenant_company_entity')
     .on(t.feTenantId, t.companyIdentifier, t.entityType, t.entityId),
 }));
+
+export const haloCredentials = pgTable('halo_credentials', {
+  // PK = Frontegg tenant id to keep 1:1 with tenant
+  feTenantId: varchar('fe_tenant_id', { length: 64 }).primaryKey(),
+
+  // Where your Halo env lives, e.g. https://solacedev.halopsa.com
+  baseUrl: text('base_url').notNull(),
+
+  // Client Credentials (encrypted at rest)
+  clientIdEnc: text('client_id_enc').notNull(),
+  clientSecretEnc: text('client_secret_enc').notNull(),
+
+  // Optional scopes string, e.g. "all"
+  scope: text('scope').default('all'),
+
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});

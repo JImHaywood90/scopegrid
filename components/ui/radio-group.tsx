@@ -38,11 +38,11 @@ function RadioGroupItem({
         className="relative flex items-center justify-center"
       >
           <Image
-            src="/ScopeGridLogo.png"
+            src="/ScopeGridIcon.png"
             alt="ScopeGrid"
-            width={160}           // safe intrinsic size; adjust to your asset
+            width={40}           // safe intrinsic size; adjust to your asset
             height={40}
-            className="h-8 w-auto"
+            className="h-4 w-4"
             priority
           />
       </RadioGroupPrimitive.Indicator>

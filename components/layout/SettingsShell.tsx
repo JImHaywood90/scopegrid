@@ -24,7 +24,7 @@ export default function SettingsShell({ children }: { children: React.ReactNode 
     { href: '/settings', icon: Users, label: 'Team' },
     { href: '/settings/matching', icon: Shield, label: 'Custom Matching' },
     { href: '/settings/integrations', icon: Settings, label: 'Integrations' },
-    { href: '/settings/connectwise', img: '/connectwise.png', label: 'ConnectWise' },
+    { href: '/settings/psa', icon: Settings, label: 'PSA Config' },
   ];
 
   // If you change header height, update this value (dashboard header is ~56px tall)

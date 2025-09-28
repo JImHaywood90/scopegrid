@@ -34,7 +34,7 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts"
-  ],
+, "components/pricing"  ],
   "exclude": [
     "node_modules"
   ]
