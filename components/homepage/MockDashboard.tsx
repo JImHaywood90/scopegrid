@@ -26,6 +26,17 @@ import {
   CommandInput,
   CommandList,
 } from "@/components/ui/command";
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
 
 /* --------------------------------- types --------------------------------- */
 type UnifiedCompany = { identifier: string; name: string; subtitle?: string };
@@ -256,11 +267,13 @@ function CardShell({
   href,
   lightLogo,
   darkLogo,
+  onOpenClick,
 }: {
   children: React.ReactNode;
   href?: string;
   lightLogo?: string;
   darkLogo?: string;
+  onOpenClick?: () => void;
 }) {
   return (
     <div
@@ -298,11 +311,14 @@ function CardShell({
 
         <a
           href={href || "#"}
-          onClick={(e) => e.preventDefault()}
+          onClick={(e) => {
+            e.preventDefault();
+            onOpenClick?.();
+          }}
           className="inline-flex h-7 w-7 items-center justify-center rounded-full
-                     bg-slate-100/90 dark:bg-slate-800/70 border
-                     border-slate-200/70 dark:border-slate-700/60
-                     hover:bg-slate-100 dark:hover:bg-slate-800"
+             bg-slate-100/90 dark:bg-slate-800/70 border
+             border-slate-200/70 dark:border-slate-700/60
+             hover:bg-slate-100 dark:hover:bg-slate-800"
           aria-label="Open"
         >
           <ExternalLink className="h-3.5 w-3.5 opacity-70" />
@@ -313,9 +329,20 @@ function CardShell({
   );
 }
 
-function ProductCard({ p }: { p: Product }) {
+function ProductCard({
+  p,
+  onOpen,
+}: {
+  p: Product;
+  onOpen: (p: Product) => void;
+}) {
   return (
-    <CardShell lightLogo={p.lightLogo} darkLogo={p.darkLogo} href={p.href}>
+    <CardShell
+      lightLogo={p.lightLogo}
+      darkLogo={p.darkLogo}
+      href={p.href}
+      onOpenClick={() => onOpen(p)}
+    >
       <div className="text-sm font-medium leading-tight">{p.name}</div>
       <div className="text-xs text-muted-foreground leading-snug mt-0.5">
         {p.description}
@@ -330,15 +357,22 @@ function MetricCard({
   darkLogo,
   rightIcon,
   metrics,
+  onOpenClick,
 }: {
   title: string;
   lightLogo?: string;
   darkLogo?: string;
   rightIcon: "backup" | "cipp";
   metrics: { label: string; value: string }[];
+  onOpenClick?: () => void;
 }) {
   return (
-    <CardShell lightLogo={lightLogo} darkLogo={darkLogo} href="#">
+    <CardShell
+      lightLogo={lightLogo}
+      darkLogo={darkLogo}
+      href="#"
+      onOpenClick={onOpenClick}
+    >
       <div className="flex items-center justify-between">
         <div className="text-sm font-medium">{title}</div>
         {rightIcon === "backup" ? (
@@ -356,6 +390,171 @@ function MetricCard({
         ))}
       </div>
     </CardShell>
+  );
+}
+
+const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
+
+export function FakeDataPopupWindow({
+  title,
+  onClose,
+}: {
+  title: string;
+  onClose: () => void;
+}) {
+  React.useEffect(() => {
+    const timeout = setTimeout(onClose, 10000);
+    return () => clearTimeout(timeout);
+  }, [onClose]);
+
+  const chartData = React.useMemo(
+    () =>
+      Array.from({ length: 5 }).map((_, i) => ({
+        name: `D${i + 1}`,
+        value: faker.number.int({ min: 60, max: 100 }),
+      })),
+    []
+  );
+
+  const pieData = React.useMemo(
+    () => [
+      { name: "Success", value: faker.number.int({ min: 70, max: 90 }) },
+      { name: "Failed", value: faker.number.int({ min: 5, max: 15 }) },
+      { name: "Pending", value: faker.number.int({ min: 1, max: 10 }) },
+    ],
+    []
+  );
+
+  return (
+    <div
+      className="absolute inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="relative w-[320px] h-[340px] rounded-b-xl rounded-t-[14px] 
+                   bg-white dark:bg-slate-900 border border-slate-300 
+                   shadow-xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Titlebar */}
+        <div
+          className="flex items-center justify-between px-3 py-2 border-b
+                     bg-slate-100 dark:bg-slate-800
+                     border-slate-200 dark:border-slate-700"
+        >
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onClose}
+              aria-label="Close"
+              className="size-3 rounded-full bg-red-400/80 hover:bg-red-500 transition"
+            />
+            <span className="size-3 rounded-full bg-amber-400/80" />
+            <span className="size-3 rounded-full bg-green-400/80" />
+          </div>
+          <div className="text-xs text-muted-foreground truncate">
+            {title}
+          </div>
+        </div>
+
+        {/* Chart content */}
+        <div className="p-3 space-y-3">
+          <div className="text-sm font-medium">{title}</div>
+
+          <div className="h-24 w-full">
+            <ResponsiveContainer>
+              <BarChart data={chartData}>
+                <XAxis dataKey="name" hide />
+                <YAxis hide domain={[0, 100]} />
+                <Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="h-24 w-full">
+            <ResponsiveContainer>
+              <PieChart>
+                <Pie
+                  data={pieData}
+                  dataKey="value"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={40}
+                  isAnimationActive={false}
+                >
+                  {pieData.map((entry, i) => (
+                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                  ))}
+                </Pie>
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+
+/* ---------------------------- Fake Product Dashboard Popup -------------------------- */
+function FakePopupWindow({
+  product,
+  onClose,
+}: {
+  product: Product;
+  onClose: () => void;
+}) {
+  // Auto-close after 5 seconds (optional)
+  React.useEffect(() => {
+    const timeout = setTimeout(() => {
+      onClose();
+    }, 10000);
+    return () => clearTimeout(timeout);
+  }, [onClose]);
+
+  return (
+    <div
+      className="absolute inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="relative w-[95%] max-w-2xl rounded-b-xl rounded-t-[14px] bg-white dark:bg-slate-900 border border-slate-300 shadow-2xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Simulated browser header */}
+        <div
+          className="flex items-center justify-between px-3 py-2 border-b
+                     bg-slate-100 dark:bg-slate-800
+                     border-slate-200 dark:border-slate-700"
+        >
+          <div className="flex items-center gap-2">
+            {/* Close button is now the red circle */}
+            <button
+              onClick={onClose}
+              aria-label="Close window"
+              className="size-3 rounded-full bg-red-400/80 hover:bg-red-500 transition"
+            />
+            <span className="size-3 rounded-full bg-amber-400/80" />
+            <span className="size-3 rounded-full bg-green-400/80" />
+          </div>
+          <div className="text-xs text-muted-foreground">
+            {product.name} Portal
+          </div>
+          {/* Removed ✕ button */}
+        </div>
+
+        {/* Content area */}
+        <div className="p-6">
+          <div className="text-lg font-semibold mb-2">{product.name}</div>
+          <p className="text-sm text-muted-foreground">
+            Welcome to the <strong>{product.name}</strong> portal.
+            <br />
+            This is a simulated popup — in production, this would link to the
+            product’s external admin or homepage.
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -448,6 +647,10 @@ function CompanyPicker({
 export default function MockDashboard() {
   // Seed faker once to keep data stable across hot reloads
   React.useMemo(() => seedOnce(20250928), []);
+  const [openProduct, setOpenProduct] = React.useState<Product | null>(null);
+  const [openMetricPopup, setOpenMetricPopup] = React.useState<
+    "cipp" | "backup" | null
+  >(null);
 
   // Build a fake tenant once
   const { companies, datasets } = React.useMemo(() => buildFakeTenant(4), []);
@@ -469,6 +672,7 @@ export default function MockDashboard() {
         lightLogo="/integrations/backupradar.png"
         darkLogo="/integrations/backupradar.png"
         rightIcon="backup"
+        onOpenClick={() => setOpenMetricPopup("backup")}
         metrics={[
           { label: "Success", value: `${k.backup.successPct}%` },
           { label: "Fails 24h", value: `${k.backup.failures24h}` },
@@ -481,6 +685,7 @@ export default function MockDashboard() {
         lightLogo="/integrations/cipp.png"
         darkLogo="/integrations/cipp.png"
         rightIcon="cipp"
+        onOpenClick={() => setOpenMetricPopup("cipp")}
         metrics={[
           { label: "Users", value: `${k.cipp.users}` },
           { label: "MFA", value: `${k.cipp.mfa}%` },
@@ -489,7 +694,7 @@ export default function MockDashboard() {
       />,
     ];
     const productTiles = dataset.products.map((p) => (
-      <ProductCard key={p.id} p={p} />
+      <ProductCard key={p.id} p={p} onOpen={setOpenProduct} />
     ));
     return [...kpiTiles, ...productTiles];
   }, [dataset]);
@@ -532,6 +737,22 @@ export default function MockDashboard() {
           </div>
         </div>
       </div>
+      {openProduct && (
+        <FakePopupWindow
+          product={openProduct}
+          onClose={() => setOpenProduct(null)}
+        />
+      )}
+      {openMetricPopup && (
+        <FakeDataPopupWindow
+          title={
+            openMetricPopup === "backup"
+              ? "BackupRadar Details"
+              : "CIPP (M365) Details"
+          }
+          onClose={() => setOpenMetricPopup(null)}
+        />
+      )}
     </div>
   );
 }

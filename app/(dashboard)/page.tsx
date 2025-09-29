@@ -37,6 +37,9 @@ import {
   Sheet,
 } from "@/components/ui/sheet";
 import MockDashboard from "@/components/homepage/MockDashboard";
+import { cn } from "@/lib/utils";
+import { IntegrationCard } from "@/components/integrations/IntegrationsCard";
+import { INTEGRATIONS } from "@/components/integrations/registry";
 
 /* -------------------------------- utils -------------------------------- */
 function usePrefersReducedMotion() {
@@ -169,106 +172,11 @@ function PricingTeaser() {
   );
 }
 
-/* -------------------- mock dashboard matching the app ------------------- */
-// function MockDashboard() {
-//   const logos = [
-//     {
-//       light: "/logos/meraki250_light.png",
-//       dark: "/logos/meraki250.png",
-//       alt: "Cisco Meraki",
-//     },
-//     {
-//       light: "/logos/microsoft250.png",
-//       dark: "/logos/microsoft250.png",
-//       alt: "Microsoft 365",
-//     },
-//     {
-//       light: "/logos/AutoElevate250_light.png",
-//       dark: "/logos/AutoElevate250.png",
-//       alt: "AutoElevate",
-//     },
-//     {
-//       light: "/logos/automate250_light.png",
-//       dark: "/logos/automate250.png",
-//       alt: "ConnectWise RMM",
-//     },
-//   ];
-
-//   return (
-//     <div className="relative w-full">
-//       <div className="pointer-events-none absolute -inset-8 rounded-[28px] bg-gradient-to-tr from-orange-300/20 via-orange-200/10 to-transparent blur-2xl" />
-//       <div
-//         className="relative rounded-2xl overflow-hidden
-//                       border border-slate-200/70 dark:border-slate-700/60
-//                       bg-white/85 dark:bg-slate-900/60 backdrop-blur"
-//       >
-//         {/* app-like header bar */}
-//         <div
-//           className="flex items-center justify-between h-12 px-4
-//                         border-b border-slate-200/70 dark:border-slate-700/60
-//                         bg-white/80 dark:bg-slate-800/70"
-//         >
-//           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-//             <span className="size-2 rounded-full bg-red-400/80" />
-//             <span className="size-2 rounded-full bg-amber-400/80" />
-//             <span className="size-2 rounded-full bg-green-400/80" />
-//             <span className="ml-3 hidden sm:inline">
-//               ScopeGrid — Client Products
-//             </span>
-//           </div>
-//           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-//             <div className="h-7 w-40 rounded-full bg-white/60 dark:bg-slate-900/40 border border-slate-200/60 dark:border-slate-700/60" />
-//           </div>
-//         </div>
-
-//         {/* grid of product cards (condensed like your real cards) */}
-//         <div className="p-4 sm:p-6">
-//           <div className="grid gap-4 grid-cols-2 sm:grid-cols-3">
-//             {logos.map((l, i) => (
-//               <div
-//                 key={i}
-//                 className="rounded-2xl overflow-hidden
-//                            bg-white/85 dark:bg-slate-900/65
-//                            border border-slate-200/70 dark:border-slate-700/60
-//                            hover:shadow-md hover:border-slate-300/70 dark:hover:border-slate-600/70
-//                            transition-all"
-//               >
-//                 {/* header with logo + link icon (no extra vertical space) */}
-//                 <div className="flex items-start justify-between px-3 pt-3">
-//                   <img
-//                     src={l.light}
-//                     alt={l.alt}
-//                     width={220}
-//                     height={120}
-//                     className="max-h-10 w-auto object-contain"
-//                   />
-//                   <span
-//                     className="inline-flex h-7 w-7 items-center justify-center rounded-full
-//                                    bg-slate-100/80 dark:bg-slate-800/70 border
-//                                    border-slate-200/70 dark:border-slate-700/60"
-//                   >
-//                     <ExternalLink className="h-3.5 w-3.5 opacity-70" />
-//                   </span>
-//                 </div>
-//                 {/* description area */}
-//                 <div className="px-3 pb-3 pt-2 text-sm leading-snug text-muted-foreground min-h-[56px]">
-//                   {l.alt}
-//                 </div>
-//               </div>
-//             ))}
-//           </div>
-//         </div>
-//       </div>
-//     </div>
-//   );
-// }
-
 /* --------------------------- scrolling logo strip -------------------------- */
 function LogoMarquee() {
   const baseLogos = useMemo(
     () => [
       { src: "/logos/microsoft250.png", alt: "Microsoft 365" },
-      { src: "/logos/sentinel250.png", alt: "SentinelOne" },
       { src: "/logos/Veeam250.png", alt: "Veeam" },
       { src: "/logos/mimecast250.png", alt: "Mimecast" },
       { src: "/logos/meraki250.png", alt: "Meraki" },
@@ -297,7 +205,6 @@ function LogoMarquee() {
       { src: "/logos/skykick250.png", alt: "Skykick" },
       { src: "/logos/smtp2go250.png", alt: "SMTP2Go" },
       { src: "/logos/zyxel250.png", alt: "Zyxel" },
-      // add more here freely
     ],
     []
   );
@@ -319,25 +226,18 @@ function LogoMarquee() {
 
         <div
           ref={ref}
-          className="relative mt-8 overflow-hidden rounded-xl ring-1 ring-white/5"
+          className="relative mt-8 overflow-hidden rounded-xl ring-1 ring-white/5 group"
         >
           {/* edge masks to avoid harsh ends */}
           <div className="pointer-events-none absolute left-0 top-0 h-full w-16 z-10 bg-gradient-to-r from-slate-900 via-slate-900/70 to-transparent" />
           <div className="pointer-events-none absolute right-0 top-0 h-full w-16 z-10 bg-gradient-to-l from-slate-900 via-slate-900/70 to-transparent" />
 
           <div
-            className={[
-              "flex items-center gap-10 will-change-transform whitespace-nowrap py-6",
-              reduced ? "" : "sg-marquee",
-              inView ? "" : "sg-paused",
-            ].join(" ")}
+            className={cn(
+              "flex items-center gap-10 whitespace-nowrap py-6 transition-transform",
+              inView && !reduced && "animate-marquee"
+            )}
             aria-hidden="true"
-            // longer = slower; tweak freely
-            style={
-              reduced
-                ? undefined
-                : ({ ["--sg-speed" as any]: "160s" } as React.CSSProperties)
-            }
           >
             {logos.map((l, i) => (
               <div
@@ -359,25 +259,21 @@ function LogoMarquee() {
           </div>
 
           <style jsx>{`
-            .sg-marquee {
-              animation: sg-scroll var(--sg-speed, 300s) linear infinite;
-            }
-            .sg-paused {
-              animation-play-state: paused !important;
-            }
-            @media (prefers-reduced-motion: reduce) {
-              .sg-marquee {
-                animation: none !important;
-                transform: none !important;
-              }
-            }
-            @keyframes sg-scroll {
+            @keyframes marquee {
               0% {
-                transform: translateX(0);
+                transform: translateX(0%);
               }
               100% {
                 transform: translateX(-50%);
               }
+            }
+
+            .animate-marquee {
+              animation: marquee 60s linear infinite;
+            }
+
+            .group:hover .animate-marquee {
+              animation-play-state: paused !important;
             }
           `}</style>
         </div>
@@ -415,7 +311,8 @@ function LogoMarquee() {
                     alt={l.alt}
                     width={220}
                     height={88}
-                    className="max-h-10 w-auto object-contain"
+                    loading="lazy"
+                    className="h-10 sm:h-12 md:h-14 w-auto object-contain opacity-90"
                   />
                 </div>
               ))}
@@ -531,6 +428,7 @@ function Features() {
   );
 }
 
+
 function Integrations() {
   return (
     <section className="py-14 bg-white dark:bg-slate-950" id="integrations">
@@ -544,149 +442,12 @@ function Integrations() {
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {/* PSA (ConnectWise + Halo) */}
-          <div className="rounded-2xl border border-slate-200/70 dark:border-slate-700/60 bg-white/90 dark:bg-slate-900/60 backdrop-blur p-5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1">
-                  <Image
-                    src="/logos/square/itglue.png"
-                    alt="ConnectWise"
-                    width={24}
-                    height={24}
-                    className="h-6 w-6"
-                  />
-                </div>
-                <span className="font-medium">IT Glue</span>
-              </div>
-              <span
-                className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px]
-                               border-blue-200 bg-blue-50 text-blue-700
-                               dark:border-blue-900/40 dark:bg-blue-900/30 dark:text-blue-300"
-              >
-                ● Quick Refs
-              </span>
-            </div>
-            <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
-              Embed client product lists directly in IT Glue for easy reference
-              by your techs and AMs.
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <span className="rounded-full border px-2 py-0.5 text-[11px] text-slate-600 dark:text-slate-300">
-                Per-client views
-              </span>
-              <span className="rounded-full border px-2 py-0.5 text-[11px] text-slate-600 dark:text-slate-300">
-                Zero agents
-              </span>
-            </div>
-          </div>
-
-          {/* BackupRadar */}
-          <div className="rounded-2xl border border-slate-200/70 dark:border-slate-700/60 bg-white/90 dark:bg-slate-900/60 backdrop-blur p-5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Image
-                  src="/integrations/backupradar.png"
-                  alt="BackupRadar"
-                  width={28}
-                  height={28}
-                  className="h-7 w-7"
-                />
-                <span className="font-medium">BackupRadar</span>
-              </div>
-              <span
-                className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px]
-                               border-blue-200 bg-blue-50 text-blue-700
-                               dark:border-blue-900/40 dark:bg-blue-900/30 dark:text-blue-300"
-              >
-                ● Health signals
-              </span>
-            </div>
-            <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
-              See backup health alongside each client’s tools to speed triage.
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <span className="rounded-full border px-2 py-0.5 text-[11px] text-slate-600 dark:text-slate-300">
-                Client rollups
-              </span>
-              <span className="rounded-full border px-2 py-0.5 text-[11px] text-slate-600 dark:text-slate-300">
-                Drill-downs
-              </span>
-            </div>
-          </div>
-
-          {/* CIPP */}
-          <div className="rounded-2xl border border-slate-200/70 dark:border-slate-700/60 bg-white/90 dark:bg-slate-900/60 backdrop-blur p-5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Image
-                  src="/integrations/cipp.png"
-                  alt="CIPP"
-                  width={28}
-                  height={28}
-                  className="h-7 w-7"
-                />
-                <span className="font-medium">CIPP (M365)</span>
-              </div>
-              <span
-                className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px]
-                               border-indigo-200 bg-indigo-50 text-indigo-700
-                               dark:border-indigo-900/40 dark:bg-indigo-900/30 dark:text-indigo-300"
-              >
-                ● Posture
-              </span>
-            </div>
-            <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
-              Put tenant posture and quick actions where your team already
-              works.
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <span className="rounded-full border px-2 py-0.5 text-[11px] text-slate-600 dark:text-slate-300">
-                Secure score
-              </span>
-              <span className="rounded-full border px-2 py-0.5 text-[11px] text-slate-600 dark:text-slate-300">
-                Task links
-              </span>
-            </div>
-          </div>
-
-          {/* SmileBack */}
-          <div className="rounded-2xl border border-slate-200/70 dark:border-slate-700/60 bg-white/90 dark:bg-slate-900/60 backdrop-blur p-5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Image
-                  src="/integrations/smileback.png"
-                  alt="SmileBack"
-                  width={28}
-                  height={28}
-                  className="h-7 w-7"
-                />
-                <span className="font-medium">SmileBack</span>
-              </div>
-              <span
-                className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px]
-                               border-amber-200 bg-amber-50 text-amber-700
-                               dark:border-amber-900/40 dark:bg-amber-900/30 dark:text-amber-300"
-              >
-                ● Feedback
-              </span>
-            </div>
-            <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
-              Keep CSAT/NPS context next to the tools your AMs and techs
-              discuss.
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <span className="rounded-full border px-2 py-0.5 text-[11px] text-slate-600 dark:text-slate-300">
-                Trends
-              </span>
-              <span className="rounded-full border px-2 py-0.5 text-[11px] text-slate-600 dark:text-slate-300">
-                Ticket links
-              </span>
-            </div>
-          </div>
+          {INTEGRATIONS.map((integration) => (
+            <IntegrationCard key={integration.slug} integration={integration} />
+          ))}
         </div>
 
-        {/* Roadmap */}
+        {/* Roadmap section (can also be registry-driven if desired) */}
         <div className="mt-6 flex flex-wrap items-center gap-3 text-sm">
           <span className="text-slate-500 dark:text-slate-400">
             Also on our roadmap:
@@ -708,7 +469,7 @@ function Integrations() {
 
 function HowItWorks() {
   return (
-    <section className="relative py-16 bg-slate-950">
+    <section className="relative py-16 bg-slate-950 dark:bg-slate-900">
       <div className="pointer-events-none absolute inset-0 -z-10">
         <div className="absolute inset-0 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950" />
         <div className="absolute -top-24 right-1/4 h-64 w-64 rounded-full bg-orange-400/10 blur-3xl" />
