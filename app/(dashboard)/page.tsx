@@ -40,6 +40,8 @@ import MockDashboard from "@/components/homepage/MockDashboard";
 import { cn } from "@/lib/utils";
 import { IntegrationCard } from "@/components/integrations/IntegrationsCard";
 import { INTEGRATIONS } from "@/components/integrations/registry";
+import { BookerEmbed } from "@calcom/atoms";
+import ScheduleDemoButton from "@/components/homepage/ScheduleDemoButton";
 
 /* -------------------------------- utils -------------------------------- */
 function usePrefersReducedMotion() {
@@ -374,6 +376,9 @@ function Hero() {
             <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
               Secure • tenant-scoped • built for MSPs
             </p>
+            <Suspense fallback={<div>Loading Booker…</div>}>
+              <ScheduleDemoButton />
+            </Suspense>
           </div>
 
           <div className="lg:col-span-7 overflow-hidden">
@@ -427,7 +432,6 @@ function Features() {
     </section>
   );
 }
-
 
 function Integrations() {
   return (
