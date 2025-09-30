@@ -11,7 +11,7 @@ export default function ScheduleDemoButton() {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button className="rounded-full bg-orange-500 hover:bg-orange-600">
+        <Button className="rounded-full mt-4 bg-orange-500 hover:bg-orange-600">
           Schedule a demo
         </Button>
       </DialogTrigger>

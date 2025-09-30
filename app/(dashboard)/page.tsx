@@ -101,8 +101,9 @@ function PricingTeaser() {
           </h2>
           <p className="mt-2 text-slate-600 dark:text-slate-300">
             We’re finalising plans tailored for MSPs. Register interest and
-            we’ll keep you posted.
+            we’ll keep you posted. 
           </p>
+          <ScheduleDemoButton />
         </div>
 
         <div className="relative overflow-hidden rounded-2xl border border-slate-200/70 dark:border-slate-700/60">
@@ -948,8 +949,8 @@ export default function HomePage() {
         {/* How it works */}
         <HowItWorks />
         {/* Pricing */}
-        <PricingSectionClient />
-        {/* <PricingTeaser /> */}
+        {/* <PricingSectionClient /> */}
+        <PricingTeaser />
         <TrustFooter />
       </main>
     </Suspense>
