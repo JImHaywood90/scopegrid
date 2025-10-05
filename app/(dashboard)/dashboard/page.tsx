@@ -9,6 +9,7 @@ import ProductCardSkeleton from "@/components/products/ProductCardSkeleton";
 import DomainCard from "@/components/domains/DomainCard";
 import { probeBackupRadarPresence } from "@/lib/backupRadarProbe";
 import BackupRadarCard from "@/components/backupradar/BackupRadarCard";
+import { MerakiCard } from "@/components/meraki/MerakiCard";
 import { useCompanyContext } from "@/contexts/CompanyContext";
 import { MatchingProvider } from "@/contexts/MatchingContext";
 import { useMatching } from "@/hooks/useMatching";
@@ -210,9 +211,15 @@ export default function DashboardProducts() {
                         />
                       );
                     })}
-                    {backupRadar?.hasResults && name && (
+                    {identifier ? (
+                      <MerakiCard
+                        companyIdentifier={identifier}
+                        companyName={name ?? undefined}
+                      />
+                    ) : null}
+                    {backupRadar?.hasResults && name ? (
                       <BackupRadarCard companyName={name} />
-                    )}
+                    ) : null}
                   </div>
                 );
               }}

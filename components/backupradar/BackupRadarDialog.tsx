@@ -105,7 +105,7 @@ export function BackupRadarDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent
         style={{ width: "100vw", height: "80vh", maxWidth: "100vw" }}
-        className="p-6 overflow-hidden flex flex-col"
+        className="p-6 overflow-hidden flex flex-col  bg-white dark:bg-slate-900"
       >
         <DialogHeader className="flex flex-row items-center justify-between mb-4">
           <DialogTitle className="text-2xl">

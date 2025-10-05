@@ -75,7 +75,7 @@ export const INTEGRATIONS: IntegrationMeta[] = [
     ],
   },
   {
-    slug: "ciscomeraki",
+    slug: "meraki",
     name: "Meraki",
     logoLight: "/logos/square/meraki.png",
     description:
@@ -88,7 +88,6 @@ export const INTEGRATIONS: IntegrationMeta[] = [
         name: "baseUrl",
         label: "Base URL",
         placeholder: "https://api.meraki.com/api/v1",
-        required: true,
       },
       {
         type: "password",

@@ -57,8 +57,6 @@ export default async function IntegrationEditPage({
         </Link>
       </div>
 
-      <h1 className="text-lg lg:text-2xl font-medium mb-4">{meta.name}</h1>
-
       {/* Client component in Suspense to satisfy CSR-bailout */}
       <Suspense fallback={<FormFallback />}>
         <IntegrationForm slug={slug} />

@@ -1,7 +1,15 @@
 // lib/db/schema.v2.ts
 import {
-  pgTable, serial, varchar, text, timestamp, boolean, jsonb, uniqueIndex,
-  integer
+  pgTable,
+  serial,
+  varchar,
+  text,
+  timestamp,
+  boolean,
+  jsonb,
+  uniqueIndex,
+  integer,
+  index,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
@@ -98,6 +106,20 @@ export const tenantIntegrations = pgTable('tenant_integrations', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (t) => ({
   uniqTenantIntegration: uniqueIndex('uniq_tenant_integration').on(t.feTenantId, t.slug),
+}));
+
+export const merakiOrgMappings = pgTable('meraki_org_mappings', {
+  id: serial('id').primaryKey(),
+  feTenantId: varchar('fe_tenant_id', { length: 64 }).notNull(),
+  merakiOrgId: varchar('meraki_org_id', { length: 64 }).notNull(),
+  merakiOrgName: varchar('meraki_org_name', { length: 255 }).notNull(),
+  companyIdentifier: varchar('company_identifier', { length: 120 }).notNull(),
+  companyName: varchar('company_name', { length: 255 }),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (t) => ({
+  uniqMerakiOrgMapping: uniqueIndex('uniq_meraki_org_mapping').on(t.feTenantId, t.merakiOrgId),
+  companyLookupIdx: index('idx_meraki_org_company').on(t.feTenantId, t.companyIdentifier),
 }));
 
 // Activity (optional, now tenant-scoped by feTenantId + feUserId)
