@@ -3,12 +3,10 @@
 import * as React from "react";
 import useSWR from "swr";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import ThemedImage from "@/components/media/ThemedImage";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { DomainDialog } from "./DomainDialog";
 
 export type DomainDnsResult = {
   ARecord: string;
@@ -53,7 +51,7 @@ async function fetchDomainChecks(domains: string[]): Promise<Record<string, Doma
   return json.results ?? {};
 }
 
-const hasRecord = (values?: string[] | string): boolean => {
+export const hasRecord = (values?: string[] | string): boolean => {
   if (!values) return false;
   if (Array.isArray(values)) {
     return values.some((v) => v && v !== "No record found");
@@ -61,11 +59,7 @@ const hasRecord = (values?: string[] | string): boolean => {
   return values !== "No record found";
 };
 
-const StatusBadge = ({ value, label }: { value: boolean; label: string }) => (
-  <Badge variant={value ? "secondary" : "outline"}>{value ? `${label} ✓` : `${label} ✗`}</Badge>
-);
-
-type SummaryItem = {
+export type SummaryItem = {
   domain: string;
   result?: DomainDnsResult;
   tone: "good" | "warn" | "bad" | "pending";
@@ -100,22 +94,15 @@ export default function DomainCard({ catalog, domains }: DomainCardProps) {
   }, [sortedDomains, results, error]);
 
   const [dialogOpen, setDialogOpen] = React.useState(false);
-  const [activeDomain, setActiveDomain] = React.useState<string | null>(null);
+  const [selectedDomain, setSelectedDomain] = React.useState<string | null>(null);
 
   const openDetails = React.useCallback(
     (domain: string) => {
-      setActiveDomain(domain);
+      setSelectedDomain(domain);
       setDialogOpen(true);
     },
     []
   );
-
-  React.useEffect(() => {
-    if (!dialogOpen) return;
-    if (activeDomain && summaryItems.some((item) => item.domain === activeDomain)) return;
-    const first = summaryItems[0];
-    if (first) setActiveDomain(first.domain);
-  }, [dialogOpen, activeDomain, summaryItems]);
 
   const cardBody = React.useMemo(() => {
     if (isLoading) {
@@ -161,8 +148,6 @@ export default function DomainCard({ catalog, domains }: DomainCardProps) {
     );
   }, [error, isLoading, openDetails, summaryItems, sortedDomains.length]);
 
-  const activeResult = activeDomain ? results[activeDomain] : undefined;
-
   return (
     <>
       <Card
@@ -188,103 +173,16 @@ export default function DomainCard({ catalog, domains }: DomainCardProps) {
         </CardContent>
       </Card>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[640px] space-y-4">
-          <DialogHeader>
-            <DialogTitle>Domain health</DialogTitle>
-          </DialogHeader>
-
-          <div className="flex flex-wrap gap-2">
-            {summaryItems.map((item) => (
-              <button
-                key={`dialog-${item.domain}`}
-                type="button"
-                onClick={() => setActiveDomain(item.domain)}
-                className={cn(
-                  'rounded-full px-3 py-1 text-xs font-medium border transition-colors',
-                  toneClasses[item.tone],
-                  activeDomain === item.domain && 'ring-2 ring-primary/40'
-                )}
-              >
-                {item.domain}
-                <span className="ml-2 text-[10px] uppercase tracking-wide">{item.statusLabel}</span>
-              </button>
-            ))}
-          </div>
-
-          {activeDomain && (
-            <DomainDetail
-              domain={activeDomain}
-              result={activeResult}
-            />
-          )}
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DomainDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        summaryItems={summaryItems}
+        results={results}
+        initialDomain={selectedDomain ?? summaryItems[0]?.domain ?? null}
+        loading={isLoading}
+        error={error instanceof Error ? error.message : error ? String(error) : null}
+      />
     </>
-  );
-}
-
-function DomainDetail({ domain, result }: { domain: string; result?: DomainDnsResult }) {
-  if (!result) {
-    return (
-      <div className="rounded-lg border border-slate-200/70 dark:border-slate-700/60 bg-white/70 dark:bg-slate-900/65 p-4 text-sm text-muted-foreground">
-        Lookup pending for {domain}.
-      </div>
-    );
-  }
-
-  const spfPresent = hasRecord(result.SPF);
-  const dmarcPresent = hasRecord(result.DMARC);
-  const dkimPresent = hasRecord(result.DKIM);
-  const nsPresent = hasRecord(result.NS);
-
-  if (result.error) {
-    return (
-      <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
-        Lookup failed for {domain}: {result.error}
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <div className="font-medium text-sm">{result.Domain}</div>
-          <div className="text-xs text-muted-foreground">Email provider: {result.EmailProvider || 'Unknown'}</div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <StatusBadge value={spfPresent} label="SPF" />
-          <StatusBadge value={dmarcPresent} label="DMARC" />
-          <StatusBadge value={dkimPresent} label="DKIM" />
-          <StatusBadge value={nsPresent} label="NS" />
-        </div>
-      </div>
-
-      <div className="grid gap-2 sm:grid-cols-2 text-sm">
-        <div>
-          <span className="font-medium">A Record:</span> {result.ARecord || '—'}
-        </div>
-        <div>
-          <span className="font-medium">NS:</span> {Array.isArray(result.NS) ? result.NS.join(', ') : result.NS || '—'}
-        </div>
-        <div>
-          <span className="font-medium">SPF record:</span> {result.SPF?.[0] ?? '—'}
-        </div>
-        <div>
-          <span className="font-medium">DMARC record:</span> {result.DMARC?.[0] ?? '—'}
-        </div>
-        <div className="sm:col-span-2">
-          <span className="font-medium">DKIM record:</span> {result.DKIM?.[0] ?? '—'}
-        </div>
-      </div>
-    </div>
   );
 }
 

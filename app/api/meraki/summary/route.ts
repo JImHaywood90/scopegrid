@@ -9,6 +9,12 @@ export const runtime = "nodejs";
 
 type MerakiDeviceStatus = {
   status?: string;
+  name?: string | null;
+  serial?: string | null;
+  mac?: string | null;
+  model?: string | null;
+  networkId?: string | null | number;
+  lastReportedAt?: string | null;
 };
 
 type LicenseOverview = {
@@ -123,6 +129,13 @@ export async function GET(req: NextRequest) {
           errors.push("Network fetch failed");
         }
 
+        const networkNameMap = new Map<string, string>();
+        networks.forEach((net: any) => {
+          if (net?.id) {
+            networkNameMap.set(String(net.id), net?.name ?? "");
+          }
+        });
+
         const overview = licensesRes.data ?? null;
         if (licensesRes.status >= 400) {
           errors.push("License overview fetch failed");
@@ -152,6 +165,20 @@ export async function GET(req: NextRequest) {
           ? Math.round((expirationMs - Date.now()) / (1000 * 60 * 60 * 24))
           : null;
 
+        const devices = statuses.map((device) => {
+          const networkId = device?.networkId ? String(device.networkId) : null;
+          return {
+            name: device?.name ?? null,
+            serial: device?.serial ?? null,
+            mac: device?.mac ?? null,
+            model: device?.model ?? null,
+            status: device?.status ?? null,
+            networkId,
+            networkName: networkId ? networkNameMap.get(networkId) ?? null : null,
+            lastReportedAt: device?.lastReportedAt ?? null,
+          };
+        });
+
         return {
           merakiOrgId: orgId,
           merakiOrgName: orgName,
@@ -163,8 +190,11 @@ export async function GET(req: NextRequest) {
           licenseStatus,
           licenseExpiration,
           licenseExpiresInDays,
-          devices: statuses, // raw device status array
-          networks: networks, // raw networks array
+          devices,
+          networks: networks.map((net: any) => ({
+            id: net?.id ?? null,
+            name: net?.name ?? null,
+          })),
           errors,
         };
       })

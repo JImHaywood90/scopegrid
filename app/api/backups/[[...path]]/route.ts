@@ -2,21 +2,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { requireFronteggSession } from "@/lib/auth/frontegg";
 import { getBackupRadarCredsForCurrentUser } from "@/lib/integrations/getBackupRadarCreds";
-import { cookies } from "next/headers";
-
 
 export const runtime = "nodejs";
-
-export async function getSelectedCompanyNameFromCookie(): Promise<string | null> {
-  try {
-    const cookieValue = (await cookies()).get('sg-company')?.value;
-    if (!cookieValue) return null;
-    const parsed = JSON.parse(cookieValue);
-    return parsed?.name || null;
-  } catch {
-    return null;
-  }
-}
 
 export async function GET(
   req: NextRequest,

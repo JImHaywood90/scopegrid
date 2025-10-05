@@ -10,9 +10,12 @@ import DomainCard from "@/components/domains/DomainCard";
 import { probeBackupRadarPresence } from "@/lib/backupRadarProbe";
 import BackupRadarCard from "@/components/backupradar/BackupRadarCard";
 import { MerakiCard } from "@/components/meraki/MerakiCard";
+import { SmilebackCard } from "@/components/smileback/SmilebackCard";
+import { CippCard } from "@/components/cipp/CippCard";
 import { useCompanyContext } from "@/contexts/CompanyContext";
 import { MatchingProvider } from "@/contexts/MatchingContext";
 import { useMatching } from "@/hooks/useMatching";
+import { AuvikCard } from "@/components/auvik/AuvikCard";
 
 type CatalogProduct = {
   id: number;
@@ -185,41 +188,92 @@ export default function DashboardProducts() {
                   );
                 }
 
-                return (
-                  <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                    {filtered.map(({ catalog: product, signals }) => {
-                      if (isDomainProduct(product)) {
-                        const domains = extractDomainsFromSignals(signals);
-                        return (
-                          <DomainCard
-                            key={product.slug || product.id}
-                            catalog={product}
-                            domains={domains}
-                          />
-                        );
-                      }
+                const productCards = (() => {
+                  let hasMerakiMatch = false;
+                  let hasAuvikMatch = false;
 
+                  const cards = filtered.map(({ catalog: product, signals }) => {
+                    if (isDomainProduct(product)) {
+                      const domains = extractDomainsFromSignals(signals);
                       return (
-                        <ProductCard
+                        <DomainCard
                           key={product.slug || product.id}
-                          id={product.id}
-                          name={product.name}
-                          logoLightPath={product.logoLightPath}
-                          logoDarkPath={product.logoDarkPath || undefined}
-                          description={product.description || undefined}
-                          links={product.links || undefined}
+                          catalog={product}
+                          domains={domains}
                         />
                       );
-                    })}
-                    {identifier ? (
+                    }
+
+                    const slug = (product.slug ?? '').toLowerCase();
+                    if (slug === 'microsoft-365') {
+                      return null;
+                    }
+                    if (slug === 'meraki') {
+                      hasMerakiMatch = true;
+                      return null;
+                    }
+                    if (slug === 'auvik') {
+                      hasAuvikMatch = true;
+                      return null;
+                    }
+
+                    return (
+                      <ProductCard
+                        key={product.slug || product.id}
+                        id={product.id}
+                        name={product.name}
+                        logoLightPath={product.logoLightPath}
+                        logoDarkPath={product.logoDarkPath || undefined}
+                        description={product.description || undefined}
+                        links={product.links || undefined}
+                      />
+                    );
+                  });
+
+                  if (hasMerakiMatch && identifier) {
+                    cards.push(
                       <MerakiCard
+                        key="custom-meraki-card"
                         companyIdentifier={identifier}
                         companyName={name ?? undefined}
                       />
-                    ) : null}
-                    {backupRadar?.hasResults && name ? (
-                      <BackupRadarCard companyName={name} />
-                    ) : null}
+                    );
+                  }
+
+                  if (hasAuvikMatch && identifier) {
+                    cards.push(
+                      <AuvikCard
+                        key="custom-auvik-card"
+                        companyIdentifier={identifier}
+                        companyName={name ?? undefined}
+                      />
+                    );
+                  }
+
+                  if (identifier) {
+                    cards.push(
+                      <CippCard
+                        key="custom-cipp-card"
+                        companyIdentifier={identifier}
+                        companyName={name ?? undefined}
+                      />
+                    );
+                  }
+
+                  if (name) {
+                    cards.push(<SmilebackCard key="custom-smileback-card" companyName={name} />);
+                  }
+
+                  if (backupRadar?.hasResults && name) {
+                    cards.push(<BackupRadarCard key="custom-backup-card" companyName={name} />);
+                  }
+
+                  return cards;
+                })();
+
+                return (
+                  <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                    {productCards}
                   </div>
                 );
               }}

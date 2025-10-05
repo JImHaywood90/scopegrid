@@ -32,17 +32,18 @@ export type SummaryItem = {
   networkCount: number;
   totalDevices: number;
   devices?: {
-    name: string;
-    model: string;
-    status: string;
-    mac: string;
-    serial: string;
+    name: string | null;
+    model: string | null;
+    status: string | null;
+    mac: string | null;
+    serial: string | null;
+    networkId: string | null;
+    networkName: string | null;
+    lastReportedAt: string | null;
   }[];
   networks?: {
-    id: string;
-    name: string;
-    timeZone: string;
-    tags: string[];
+    id: string | null;
+    name: string | null;
   }[];
   deviceCounts: {
     online: number;

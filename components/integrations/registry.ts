@@ -35,6 +35,36 @@ export type IntegrationMeta = {
 
 export const INTEGRATIONS: IntegrationMeta[] = [
   {
+    slug: "auvik",
+    name: "Auvik",
+    logoLight: "/logos/square/auvik.png",
+    description:
+      "Network monitoring and topology with device health, alerts, and bandwidth usage across client sites.",
+    highlight: { text: "● Networks", color: "indigo" },
+    tags: ["Device health", "Alerts"],
+    fields: [
+      {
+        type: "url",
+        name: "baseUrl",
+        label: "Base URL",
+        placeholder: "https://auvikapi.us1.my.auvik.com",
+        required: true,
+      },
+      {
+        type: "text",
+        name: "username",
+        label: "Username (email)",
+        required: true,
+      },
+      {
+        type: "password",
+        name: "apiKey",
+        label: "API Key",
+        required: true,
+      },
+    ],
+  },
+  {
     slug: "itglue",
     name: "IT Glue",
     logoLight: "/logos/square/itglue.png",
@@ -113,7 +143,30 @@ export const INTEGRATIONS: IntegrationMeta[] = [
         placeholder: "https://cipp.example.com",
         required: true,
       },
-      { type: "password", name: "apiKey", label: "API Key", required: true },
+      {
+        type: "text",
+        name: "tenantId",
+        label: "Azure Tenant ID",
+        required: true,
+      },
+      {
+        type: "text",
+        name: "clientId",
+        label: "Client ID",
+        required: true,
+      },
+      {
+        type: "password",
+        name: "clientSecret",
+        label: "Client Secret",
+        required: true,
+      },
+      {
+        type: "text",
+        name: "scope",
+        label: "OAuth Scope",
+        placeholder: "api://<client-id>/.default",
+      },
     ],
   },
   {
@@ -128,11 +181,34 @@ export const INTEGRATIONS: IntegrationMeta[] = [
       {
         type: "url",
         name: "baseUrl",
-        label: "Base URL",
-        placeholder: "https://api.smileback.com",
+        label: "API Base URL",
+        placeholder: "https://app.smileback.io/api/v3",
         required: true,
       },
-      { type: "password", name: "apiKey", label: "API Key", required: true },
+      {
+        type: "text",
+        name: "clientId",
+        label: "Client ID",
+        required: true,
+      },
+      {
+        type: "password",
+        name: "clientSecret",
+        label: "Client Secret",
+        required: true,
+      },
+      {
+        type: "text",
+        name: "username",
+        label: "Username",
+        required: true,
+      },
+      {
+        type: "password",
+        name: "password",
+        label: "Password",
+        required: true,
+      },
     ],
   },
 ];

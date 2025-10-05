@@ -1,18 +1,5 @@
-// Enhanced MerakiDialog with MUI DataGrid + Recharts + full-width layout
-
 "use client";
 
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Kpi } from "@/components/ui/kpi";
-import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import {
   ResponsiveContainer,
   BarChart,
@@ -20,38 +7,168 @@ import {
   XAxis,
   YAxis,
   Tooltip,
+  PieChart,
+  Pie,
   Cell,
 } from "recharts";
-import type {
-  SummaryItem,
-  SummaryResponse,
-} from "@/components/meraki/MerakiCard";
-import { useMemo } from "react";
-import { MerakiRadarTable } from "./MerakiRadarTable";
+import { IntegrationDialogShell } from "@/components/integrations/dialog";
+import type { SummaryResponse } from "@/components/meraki/MerakiCard";
 
-const DEVICE_STATUS_COLORS: Record<string, string> = {
-  online: "#22c55e",
-  offline: "#dc2626",
-  alerting: "#f59e0b",
+const STATUS_COLORS: Record<string, string> = {
+  Online: "#16a34a",
+  Offline: "#dc2626",
+  Alerting: "#f97316",
 };
 
-function formatExpiration(item: SummaryItem) {
-  if (!item.licenseExpiration) return "No license data";
-  const date = new Date(item.licenseExpiration);
-  if (!Number.isFinite(date.getTime())) return "No license data";
-  const formattedDate = date.toLocaleDateString();
-  if (typeof item.licenseExpiresInDays !== "number") {
-    return `Expires ${formattedDate}`;
+function aggregateStatuses(summary?: SummaryResponse | null) {
+  if (!summary) {
+    return { Online: 0, Offline: 0, Alerting: 0 };
   }
-  if (item.licenseExpiresInDays < 0) {
-    return `Expired ${Math.abs(
-      item.licenseExpiresInDays
-    )}d ago (${formattedDate})`;
+  return {
+    Online: summary.items.reduce((acc, item) => acc + item.deviceCounts.online, 0),
+    Offline: summary.items.reduce((acc, item) => acc + item.deviceCounts.offline, 0),
+    Alerting: summary.items.reduce((acc, item) => acc + item.deviceCounts.alerting, 0),
+  };
+}
+
+function networksPerOrg(summary?: SummaryResponse | null) {
+  if (!summary) return [];
+  return summary.items.map((item) => ({
+    name: item.merakiOrgName,
+    value: item.networkCount,
+  }));
+}
+
+function MerakiCharts({ summary }: { summary?: SummaryResponse | null }) {
+  const statusTotals = aggregateStatuses(summary);
+  const statusData = Object.entries(statusTotals).map(([name, value]) => ({
+    name,
+    value,
+  }));
+
+  const networkData = networksPerOrg(summary);
+
+  return (
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div className="rounded-md bg-muted/50 p-3">
+        <h3 className="mb-2 text-sm font-medium">Device status distribution</h3>
+        <ResponsiveContainer width="100%" height={160}>
+          <BarChart data={statusData}>
+            <XAxis dataKey="name" />
+            <YAxis allowDecimals={false} />
+            <Tooltip />
+            <Bar dataKey="value">
+              {statusData.map((entry) => (
+                <Cell key={entry.name} fill={STATUS_COLORS[entry.name] ?? "#64748b"} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+      <div className="rounded-md bg-muted/50 p-3">
+        <h3 className="mb-2 text-sm font-medium">Networks per organization</h3>
+        <ResponsiveContainer width="100%" height={160}>
+          <PieChart>
+            <Pie
+              data={networkData}
+              dataKey="value"
+              nameKey="name"
+              outerRadius={60}
+              label
+            >
+              {networkData.map((entry, idx) => (
+                <Cell key={entry.name} fill={`hsl(${(idx * 47) % 360}, 70%, 60%)`} />
+              ))}
+            </Pie>
+            <Tooltip />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
+const STATUS_BADGE: Record<string, string> = {
+  online: "text-emerald-600",
+  offline: "text-rose-600",
+  alerting: "text-amber-500",
+};
+
+function MerakiTable({ summary }: { summary?: SummaryResponse | null }) {
+  const rows = (summary?.items ?? []).flatMap((item) =>
+    (item.devices ?? []).map((device) => ({
+      orgName: item.merakiOrgName,
+      company: item.companyName || item.companyIdentifier,
+      status: (device.status ?? "").toLowerCase(),
+      statusRaw: device.status ?? "Unknown",
+      name: device.name ?? "Unnamed device",
+      model: device.model ?? "—",
+      mac: device.mac ?? "—",
+      serial: device.serial ?? "—",
+      networkName: device.networkName ?? "—",
+      lastReportedAt: device.lastReportedAt ?? null,
+    }))
+  );
+
+  if (!rows.length) {
+    return (
+      <div className="p-4 text-sm text-muted-foreground">
+        No Meraki device status data available.
+      </div>
+    );
   }
-  if (item.licenseExpiresInDays === 0) {
-    return `Expires today (${formattedDate})`;
-  }
-  return `Expires in ${item.licenseExpiresInDays}d (${formattedDate})`;
+
+  const formatLastSeen = (value?: string | null) => {
+    if (!value) return "—";
+    const date = new Date(value);
+    if (!Number.isFinite(date.getTime())) return value;
+    return new Intl.DateTimeFormat(undefined, {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(date);
+  };
+
+  return (
+    <div className="p-2">
+      <table className="w-full min-w-[720px] table-fixed border-collapse text-sm">
+        <thead>
+          <tr className="border-b border-slate-200 text-left dark:border-slate-700">
+            <th className="py-2 pr-3 font-medium">Device</th>
+            <th className="py-2 pr-3 font-medium">Organization</th>
+            <th className="py-2 pr-3 font-medium">Network</th>
+            <th className="py-2 pr-3 font-medium">Status</th>
+            <th className="py-2 pr-3 font-medium">Model</th>
+            <th className="py-2 pr-3 font-medium">Serial</th>
+            <th className="py-2 pr-3 font-medium">MAC</th>
+            <th className="py-2 pr-3 font-medium">Last Seen</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, idx) => (
+            <tr key={`${row.serial}-${idx}`} className="border-b border-slate-100 last:border-0 dark:border-slate-800">
+              <td className="py-2 pr-3 font-medium text-foreground">{row.name}</td>
+              <td className="py-2 pr-3 text-xs text-muted-foreground">
+                <div>{row.orgName}</div>
+                <div>{row.company}</div>
+              </td>
+              <td className="py-2 pr-3 text-xs text-muted-foreground">{row.networkName}</td>
+              <td className={`py-2 pr-3 capitalize ${STATUS_BADGE[row.status] ?? ""}`}>
+                {row.statusRaw}
+              </td>
+              <td className="py-2 pr-3">{row.model}</td>
+              <td className="py-2 pr-3">{row.serial}</td>
+              <td className="py-2 pr-3">{row.mac}</td>
+              <td className="py-2 pr-3 text-xs text-muted-foreground">
+                {formatLastSeen(row.lastReportedAt)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 type Props = {
@@ -62,108 +179,18 @@ type Props = {
   error?: any;
 };
 
-export function MerakiDialog({ open, setOpen, summary, loading }: Props) {
-  const items = summary?.items ?? [];
-
+export function MerakiDialog({ open, setOpen, summary, loading, error }: Props) {
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent
-        style={{ width: "100vw", height: "80vh", maxWidth: "100vw" }}
-        className="p-6 overflow-hidden flex flex-col  bg-white dark:bg-slate-900 overflow-y-auto"
-      >
-        <DialogHeader className="shrink-0">
-          <DialogTitle className="text-xl">Meraki Network Overview</DialogTitle>
-        </DialogHeader>
-
-        <ScrollArea className="flex-1 space-y-6 p-4">
-          {items.map((item) => {
-            const chartData = [
-              { name: "Online", value: item.deviceCounts.online },
-              { name: "Offline", value: item.deviceCounts.offline },
-              { name: "Alerting", value: item.deviceCounts.alerting },
-            ];
-
-            const deviceRows =
-              item.devices?.map((dev, index) => ({
-                id: dev.serial || index,
-                name: dev.name || "—",
-                model: dev.model,
-                status: dev.status,
-                mac: dev.mac,
-                serial: dev.serial,
-              })) ?? [];
-
-            const deviceColumns: GridColDef[] = [
-              { field: "name", headerName: "Name", flex: 1 },
-              { field: "model", headerName: "Model", flex: 1 },
-              { field: "status", headerName: "Status", flex: 1 },
-              { field: "mac", headerName: "MAC", flex: 1 },
-              { field: "serial", headerName: "Serial", flex: 1 },
-            ];
-
-            return (
-              <div
-                key={item.merakiOrgId}
-                className="rounded-xl border border-slate-200/60 bg-white/80 p-4 shadow-sm dark:border-slate-700/60 dark:bg-slate-900/60"
-              >
-                {/* Header */}
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-                  <div>
-                    <div className="text-lg font-semibold">
-                      {item.merakiOrgName}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      {item.companyName || item.companyIdentifier}
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2 mt-2 md:mt-0">
-                    {item.licenseStatus && (
-                      <Badge
-                        variant="secondary"
-                        className="uppercase text-[10px]"
-                      >
-                        {item.licenseStatus}
-                      </Badge>
-                    )}
-                    <span className="text-xs text-muted-foreground">
-                      {formatExpiration(item)}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Charts */}
-                <div className="mt-4 h-[180px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={chartData}>
-                      <XAxis dataKey="name" />
-                      <YAxis allowDecimals={false} />
-                      <Tooltip />
-                      <Bar dataKey="value">
-                        {chartData.map((entry, index) => (
-                          <Cell
-                            key={index}
-                            fill={
-                              DEVICE_STATUS_COLORS[entry.name.toLowerCase()]
-                            }
-                          />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-
-                {/* Device Table */}
-                {deviceRows.length > 0 && (
-                  <div className="mt-6">
-                    <h4 className="text-sm font-medium mb-2">Devices</h4>
-                    <MerakiRadarTable data={item.devices ?? []} />
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </ScrollArea>
-      </DialogContent>
-    </Dialog>
+    <IntegrationDialogShell
+      open={open}
+      onOpenChange={setOpen}
+      title="Meraki Network Overview"
+      loading={loading}
+      error={error ? error.message ?? String(error) : null}
+      empty={!loading && !error && (summary?.items.length ?? 0) === 0}
+      emptyMessage="No Meraki organizations are linked for this company yet."
+      charts={<MerakiCharts summary={summary} />}
+      renderTable={() => <MerakiTable summary={summary} />}
+    />
   );
 }
