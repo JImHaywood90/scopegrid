@@ -4,6 +4,7 @@ import { and, eq } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import { tenantIntegrations } from '@/lib/db/schema.v2';
 import { getAppSession } from '@frontegg/nextjs/app';
+import { decryptString, encryptString } from '@/lib/crypto';
 
 export const runtime = 'nodejs';
 
@@ -25,7 +26,29 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ slug: stri
       where: and(eq(tenantIntegrations.feTenantId, feTenantId), eq(tenantIntegrations.slug, slug)),
     });
 
-    return NextResponse.json({ item: row ?? null });
+    if (!row) {
+      return NextResponse.json({ item: null });
+    }
+
+    const rawConfig = (row.config ?? {}) as Record<string, any>;
+    let config: Record<string, any> = {};
+    if (typeof rawConfig?.__encrypted === 'string') {
+      try {
+        config = JSON.parse(decryptString(rawConfig.__encrypted));
+      } catch (err) {
+        console.error('Failed to decrypt integration config', err);
+        config = {};
+      }
+    } else {
+      config = rawConfig;
+    }
+
+    return NextResponse.json({
+      item: {
+        ...row,
+        config,
+      },
+    });
   } catch (e: any) {
     const status = e?.status ?? 500;
     console.error('GET /api/integrations/[slug] failed:', e);
@@ -48,17 +71,21 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ slug: stri
       where: and(eq(tenantIntegrations.feTenantId, feTenantId), eq(tenantIntegrations.slug, slug)),
     });
 
+    const encryptedPayload = {
+      __encrypted: encryptString(JSON.stringify(config ?? {})),
+    };
+
     if (!existing) {
       await db.insert(tenantIntegrations).values({
         feTenantId,
         slug,
-        config,
+        config: encryptedPayload,
         connected: !!connected,
       });
     } else {
       await db
         .update(tenantIntegrations)
-        .set({ config, connected: !!connected, updatedAt: new Date() })
+        .set({ config: encryptedPayload, connected: !!connected, updatedAt: new Date() })
         .where(and(eq(tenantIntegrations.feTenantId, feTenantId), eq(tenantIntegrations.slug, slug)));
     }
 

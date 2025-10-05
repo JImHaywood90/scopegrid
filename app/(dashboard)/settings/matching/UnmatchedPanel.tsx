@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Command, CommandGroup, CommandInput, CommandItem, CommandList, CommandEmpty } from '@/components/ui/command';
 import type { ScanResp, CatalogProduct, CatalogSignal } from './types';
 import { useMatching } from '@/hooks/useMatching';
@@ -179,10 +179,10 @@ function UnmatchedRow({
           )}
         </div>
         <div className="flex flex-col gap-2">
-          <Button variant="outline" size="xs" onClick={exclude}>
+          <Button variant="outline" size="sm" onClick={exclude}>
             Exclude
           </Button>
-          <MatchPopover
+          <MatchDialog
             open={open}
             onOpenChange={setOpen}
             catalog={catalog}
@@ -199,7 +199,7 @@ function UnmatchedRow({
   );
 }
 
-function MatchPopover({
+function MatchDialog({
   open,
   onOpenChange,
   catalog,
@@ -226,7 +226,7 @@ function MatchPopover({
     const needle = search.trim().toLowerCase();
     if (!needle) return catalog;
     return catalog.filter((p) => {
-      const hay = [p.name, p.slug, p.vendor ?? '', p.category ?? '', ...(p.description ?? [])];
+      const hay = [p.name, p.slug, p.vendor ?? '', p.category ?? '', ...(p.matchTerms ?? [])];
       return hay.some((h) => h && h.toLowerCase().includes(needle));
     });
   }, [catalog, search]);
@@ -236,26 +236,28 @@ function MatchPopover({
     : null;
 
   return (
-    <Popover open={open} onOpenChange={onOpenChange}>
-      <PopoverTrigger asChild>
-        <Button size="xs" variant="default">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="default">
           Match
         </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-[320px] space-y-3">
-        <div className="space-y-1">
-          <div className="text-sm font-medium">Link to product</div>
-          <div className="text-xs text-muted-foreground">Applies an override so future scans match automatically.</div>
-        </div>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[480px] space-y-4">
+        <DialogHeader className="space-y-1">
+          <DialogTitle>Link to product</DialogTitle>
+          <DialogDescription>
+            Applies an override so future scans match automatically.
+          </DialogDescription>
+        </DialogHeader>
         {selectedLabel && (
           <div className="text-xs">
             Selected: <span className="font-medium">{selectedLabel}</span>
           </div>
         )}
-        <Command>
+        <Command className="border rounded-md">
           <CommandInput placeholder="Search catalog…" value={search} onValueChange={setSearch} />
           <CommandList>
-            <CommandEmpty>No products found.</CommandEmpty>
+                <CommandEmpty>No products found.</CommandEmpty>
             <CommandGroup>
               {filtered.map((p) => (
                 <CommandItem
@@ -283,15 +285,15 @@ function MatchPopover({
             Limit to this company
           </label>
         </div>
-        <div className="flex justify-end gap-2">
+        <DialogFooter className="flex justify-end gap-2">
           <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button size="sm" onClick={onConfirm} disabled={!selectedSlug || saving}>
             {saving ? 'Linking…' : 'Link product'}
           </Button>
-        </div>
-      </PopoverContent>
-    </Popover>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

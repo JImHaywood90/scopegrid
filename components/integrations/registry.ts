@@ -65,18 +65,13 @@ export const INTEGRATIONS: IntegrationMeta[] = [
     slug: "backupradar",
     name: "BackupRadar",
     logoLight: "/integrations/backupradar.png",
-    description: "Surface backup failures and history by client and integration.",
+    description:
+      "Surface backup failures and history by client and integration.",
     highlight: { text: "● Health signals", color: "blue" },
     tags: ["Client rollups", "Drill-downs"],
     fields: [
-      {
-        type: "url",
-        name: "baseUrl",
-        label: "Base URL",
-        placeholder: "https://api.backupradar.com",
-        required: true,
-      },
-      { type: "password", name: "apiKey", label: "API Key", required: true },
+      { name: "baseUrl", label: "Base URL", type: "text" },
+      { name: "apiKey", label: "API Key", type: "password" },
     ],
   },
   {
@@ -107,7 +102,8 @@ export const INTEGRATIONS: IntegrationMeta[] = [
     slug: "cipp",
     name: "CIPP",
     logoLight: "/integrations/cipp.png",
-    description: "Microsoft 365 tenant posture & tasks. Check tenant licenses, secure score status, partners, and more.",
+    description:
+      "Microsoft 365 tenant posture & tasks. Check tenant licenses, secure score status, partners, and more.",
     highlight: { text: "● Posture", color: "indigo" },
     tags: ["Secure score", "Task links"],
     fields: [
@@ -125,7 +121,8 @@ export const INTEGRATIONS: IntegrationMeta[] = [
     slug: "smileback",
     name: "SmileBack",
     logoLight: "/integrations/smileback.png",
-    description: "CSAT & NPS feedback from end-users, linked to tickets and clients and easily viewed.",
+    description:
+      "CSAT & NPS feedback from end-users, linked to tickets and clients and easily viewed.",
     highlight: { text: "● Feedback", color: "amber" },
     tags: ["Trends", "Ticket links"],
     fields: [

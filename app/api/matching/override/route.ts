@@ -19,10 +19,19 @@ export async function POST(req: NextRequest) {
     const feTenantId = await requireFeTenantId();
 
     const body = await req.json().catch(() => ({}));
-    const { productSlug, terms, companyIdentifier, mode } = body as {
+    const {
+      productSlug,
+      catalogId,
+      terms,
+      companyIdentifier,
+      scope,
+      mode,
+    } = body as {
       productSlug?: string;
+      catalogId?: string | number | null;
       terms?: string[] | string;
       companyIdentifier?: string | null;
+      scope?: 'tenant' | 'company';
       mode?: 'append' | 'replace';
     };
 
@@ -30,8 +39,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'productSlug required' }, { status: 400 });
     }
 
-    const normalizedCompany =
-      companyIdentifier && companyIdentifier.trim().length ? companyIdentifier.trim() : null;
+    const normalizedScope = scope === 'company' ? 'company' : 'tenant';
+    const normalizedCompany = normalizedScope === 'company'
+      ? (typeof companyIdentifier === 'string' && companyIdentifier.trim().length
+          ? companyIdentifier.trim()
+          : null)
+      : null;
+
+    if (normalizedScope === 'company' && !normalizedCompany) {
+      return NextResponse.json({ error: 'companyIdentifier required for company scope' }, { status: 400 });
+    }
+
+    const catalogIdValue = catalogId == null ? null : Number(catalogId);
+    if (catalogId != null && Number.isNaN(catalogIdValue)) {
+      return NextResponse.json({ error: 'catalogId must be numeric' }, { status: 400 });
+    }
 
     // normalize terms -> lowercased + unique
     const raw = Array.isArray(terms) ? terms : typeof terms === 'string' ? terms.split(',') : [];
@@ -60,7 +82,12 @@ export async function POST(req: NextRequest) {
       // Try UPDATE first
       const updated = await db
         .update(productMatchOverrides)
-        .set({ terms: cleaned, updatedAt: new Date() })
+        .set({
+          terms: cleaned,
+          updatedAt: new Date(),
+          ...(catalogIdValue != null ? { catalogId: catalogIdValue } : {}),
+          companyIdentifier: normalizedCompany,
+        })
         .where(whereClause)
         .returning({ id: productMatchOverrides.id });
 
@@ -74,6 +101,7 @@ export async function POST(req: NextRequest) {
           feTenantId,
           productSlug,
           companyIdentifier: normalizedCompany,
+          catalogId: catalogIdValue,
           terms: cleaned,
         });
         return NextResponse.json({ ok: true, mode: 'replace', created: true });
@@ -81,7 +109,12 @@ export async function POST(req: NextRequest) {
         if (err?.code === '23505') {
           await db
             .update(productMatchOverrides)
-            .set({ terms: cleaned, updatedAt: new Date() })
+            .set({
+              terms: cleaned,
+              updatedAt: new Date(),
+              ...(catalogIdValue != null ? { catalogId: catalogIdValue } : {}),
+              companyIdentifier: normalizedCompany,
+            })
             .where(whereClause);
           return NextResponse.json({ ok: true, mode: 'replace', updated: true });
         }
@@ -98,6 +131,7 @@ export async function POST(req: NextRequest) {
           feTenantId,
           productSlug,
           companyIdentifier: normalizedCompany,
+          catalogId: catalogIdValue,
           terms: cleaned,
         });
         return NextResponse.json({ ok: true, mode: 'append', created: true });
@@ -107,7 +141,12 @@ export async function POST(req: NextRequest) {
           const merged = Array.from(new Set([...(afterRace?.terms ?? []), ...cleaned]));
           await db
             .update(productMatchOverrides)
-            .set({ terms: merged, updatedAt: new Date() })
+            .set({
+              terms: merged,
+              updatedAt: new Date(),
+              ...(catalogIdValue != null ? { catalogId: catalogIdValue } : {}),
+              companyIdentifier: normalizedCompany,
+            })
             .where(whereClause);
           return NextResponse.json({ ok: true, mode: 'append', updated: true });
         }
@@ -118,7 +157,12 @@ export async function POST(req: NextRequest) {
     const merged = Array.from(new Set([...(existing.terms ?? []), ...cleaned]));
     await db
       .update(productMatchOverrides)
-      .set({ terms: merged, updatedAt: new Date() })
+      .set({
+        terms: merged,
+        updatedAt: new Date(),
+        ...(catalogIdValue != null ? { catalogId: catalogIdValue } : {}),
+        companyIdentifier: normalizedCompany,
+      })
       .where(whereClause);
 
     return NextResponse.json({ ok: true, mode: 'append', updated: true });

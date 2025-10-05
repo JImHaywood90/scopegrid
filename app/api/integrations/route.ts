@@ -25,7 +25,14 @@ export async function GET() {
       .from(tenantIntegrations)
       .where(eq(tenantIntegrations.feTenantId, feTenantId));
 
-    return NextResponse.json({ items: rows });
+    const items = rows.map(({ slug, connected, createdAt, updatedAt }) => ({
+      slug,
+      connected,
+      createdAt,
+      updatedAt,
+    }));
+
+    return NextResponse.json({ items });
   } catch (e: any) {
     const status = e?.status ?? 500;
     console.error('GET /api/integrations failed:', e);

@@ -78,6 +78,7 @@ export const productMatchOverrides = pgTable('product_match_overrides', {
   feTenantId: varchar('fe_tenant_id', { length: 64 }).notNull(),
   productSlug: varchar('product_slug', { length: 64 }).notNull(),
   companyIdentifier: varchar('company_identifier', { length: 120 }),
+  catalogId: integer('catalog_id'),
   terms: text('terms').array().$type<string[]>().notNull().default([]),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
